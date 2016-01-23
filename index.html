@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+
+</style>
+
+</head>
+
+<body>
+
+<canvas id="canvas" width="1200" height="600"></canvas>
+
+<meta charset="utf-8">
+
+<script src="js/bot.js"></script>
+<script src="js/vector.js"></script>
+
+<script>
+
+var w = 1200, h = 600;
+var fps, last_date, second = 0;
+var canvas = document.getElementById('canvas');
+
+var world = new World(w, h);
+var bots = [];
+
+Init();
+
+function Init() {
+  for (var i = 0; i != 10; i++) {
+    bots.push(new Bot(world));
+    console.log(Math.floor(bots[i].pos.x) + " " + Math.floor(bots[i].pos.y),
+                bots[i].rot);
+  }
+
+  window.requestAnimationFrame(Draw);
+}
+
+function FpsLog() {
+  if (!last_date) {
+   last_date = Date.now();
+   fps = 0;
+   return;
+  }
+  dt = (new Date().getTime() - last_date)/1000;
+  last_date = Date.now();
+  fps = 1/dt;
+  second += dt*1000;
+  if (second > 1000) {
+    second = 0;
+  }
+  return dt;
+}
+
+function Draw() {
+  var dt = FpsLog();
+
+  var ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, w, h);
+
+  for (var i = 0; i != 10; i++) {
+    bots[i].Update(world, dt);
+    
+    ctx.save();
+    ctx = bots[i].Draw(ctx);
+    ctx.restore();
+  }
+
+
+  
+
+  window.requestAnimationFrame(Draw);
+}
+
+</script>
+
+</body>
+
+</html>
