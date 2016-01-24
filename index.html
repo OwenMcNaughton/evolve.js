@@ -13,8 +13,9 @@
 
 <meta charset="utf-8">
 
-<script src="js/bot.js"></script>
-<script src="js/vector.js"></script>
+<script src="util.js"></script>
+<script src="bot.js"></script>
+<script src="victor.min.js"></script>
 
 <script>
 
@@ -27,12 +28,25 @@ var bots = [];
 
 Init();
 
+function GetMousePos(canvas, evt) {
+  var rect = canvas.getBoundingClientRect();
+  return {
+    x: evt.clientX - rect.left,
+    y: evt.clientY - rect.top
+  };
+}
+
 function Init() {
-  for (var i = 0; i != 10; i++) {
+  for (var i = 0; i != 100; i++) {
     bots.push(new Bot(world));
-    console.log(Math.floor(bots[i].pos.x) + " " + Math.floor(bots[i].pos.y),
-                bots[i].rot);
   }
+  
+  canvas.addEventListener('mousemove', function(evt) {
+    var mouse_pos = GetMousePos(canvas, evt);
+    for (var i = 0; i != bots.length; i++) {
+      bots[i].MouseHit(mouse_pos);
+    }
+  }, false);
 
   window.requestAnimationFrame(Draw);
 }
@@ -59,19 +73,15 @@ function Draw() {
   var ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle = "#111111";
   ctx.fillRect(0, 0, w, h);
 
-  for (var i = 0; i != 10; i++) {
+  for (var i = 0; i != bots.length; i++) {
     bots[i].Update(world, dt);
-    
-    ctx.save();
     ctx = bots[i].Draw(ctx);
-    ctx.restore();
   }
-
-
   
+  console.log(bots[0].rot + " " + bots[0].flipped);
 
   window.requestAnimationFrame(Draw);
 }
