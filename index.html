@@ -37,10 +37,10 @@ function GetMousePos(canvas, evt) {
 }
 
 function Init() {
-  for (var i = 0; i != 100; i++) {
+  for (var i = 0; i != 250; i++) {
     bots.push(new Bot(world));
   }
-  
+
   canvas.addEventListener('mousemove', function(evt) {
     var mouse_pos = GetMousePos(canvas, evt);
     for (var i = 0; i != bots.length; i++) {
@@ -63,6 +63,10 @@ function FpsLog() {
   second += dt*1000;
   if (second > 1000) {
     second = 0;
+    //console.log(fps);
+    for (var i = 0; i != bots.length; i++) {
+      //console.log(bots[i].pos);
+    }
   }
   return dt;
 }
@@ -76,13 +80,16 @@ function Draw() {
   ctx.fillStyle = "#111111";
   ctx.fillRect(0, 0, w, h);
 
-  for (var i = 0; i != bots.length; i++) {
-    bots[i].Update(world, dt);
+  for (var i = 0; i < bots.length; i++) {
     ctx = bots[i].Draw(ctx);
+    if (bots[i].Update(world, dt)) {
+      bots.splice(i--, 1);
+    }
   }
   
-  console.log(bots[0].rot + " " + bots[0].flipped);
-
+  ctx = world.Draw(ctx);
+  world.Update(dt);
+ 
   window.requestAnimationFrame(Draw);
 }
 

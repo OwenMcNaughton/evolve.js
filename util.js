@@ -7,3 +7,8 @@ function Random() {
   var x = Math.sin(seed++) * 10000;
   return x - Math.floor(x);
 }
+
+function Random2(upper) {
+  var x = Math.sin(seed++) * 10000;
+  return Math.round(((x - Math.floor(x))*upper));
+}
