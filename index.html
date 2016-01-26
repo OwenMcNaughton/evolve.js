@@ -9,7 +9,7 @@
 
 <body>
 
-<canvas id="canvas" width="400" height="350"></canvas>
+<canvas id="canvas" width="400" height="600"></canvas>
 
 <meta charset="utf-8">
 
@@ -18,13 +18,14 @@
 <script src="victor.min.js"></script>
 
 <script>
-
-var w = 400, h = 350, margin = 10;
-var fps, last_date, second = 0;
+var w = window.innerWidth*0.8, h = 600, margin = 30, 
+    gen_time = 10, second_count = 0;
+var fps, saved_fps = 0, last_date, second = 0;
 var canvas = document.getElementById('canvas');
+canvas.setAttribute("width", w);
+canvas.setAttribute("height", h);
 
 var world = new World(w, h, margin);
-var bots = [];
 
 var debug = true;
 
@@ -39,15 +40,9 @@ function GetMousePos(canvas, evt) {
 }
 
 function Init() {
-  for (var i = 0; i != 10; i++) {
-    bots.push(new Bot(world));
-  }
-
   canvas.addEventListener('mousemove', function(evt) {
     var mouse_pos = GetMousePos(canvas, evt);
-    for (var i = 0; i != bots.length; i++) {
-      bots[i].MouseHit(mouse_pos);
-    }
+    world.MouseMove(mouse_pos);
   }, false);
 
   window.requestAnimationFrame(Draw);
@@ -64,8 +59,12 @@ function FpsLog() {
   fps = 1/dt;
   second += dt*1000;
   if (second > 1000) {
+    saved_fps = fps;
     second = 0;
-    console.log(fps);
+    second_count++;
+    if (second_count % gen_time == 0) {
+      world.NextGen();
+    }
   }
   return dt;
 }
@@ -76,18 +75,15 @@ function Draw() {
   var ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#111111";
+  ctx.fillStyle = "#222222";
   ctx.fillRect(0, 0, w, h);
-
-  for (var i = 0; i < bots.length; i++) {
-    ctx = bots[i].Draw(ctx);
-    if (bots[i].Update(world, dt)) {
-      bots.splice(i--, 1);
-    }
-  }
   
   ctx = world.Draw(ctx);
   world.Update(dt);
+  
+  ctx.fillStyle = "#DDDDDD";
+  ctx.font = "14px serif";
+  ctx.fillText(saved_fps.toFixed(2), 10, 20);
  
   window.requestAnimationFrame(Draw);
 }

@@ -1,8 +1,11 @@
 var botimg, bihw, bihh, bothigh, bhhw, bhhh;
 var radius;
-var max_vel;
-var food_count, foodimg, fihw, fihh, food_particle, fooddie;
+var foodimg, fihw, fihh, food_particle, fooddie;
 var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
+
+var BOT_COUNT = 50, FOOD_COUNT = 150, MUT_FUNC = 15, MUT_REPEATS = 3,
+    BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 2, 
+    MAX_SENSE_MAG = 200;
 
 Init();
 
@@ -18,10 +21,6 @@ function Init() {
   bhhh = 8;
 
   radius = 8;
-
-  max_vel = 1;
-
-  food_count = 50;
 
   foodimg = new Image();
   foodimg.src = 'res/food.png';
@@ -53,19 +52,13 @@ Bot.prototype.Init = function(parent) {
   this.beh.Init(parent);
 };
 
-Bot.prototype.ValInit = function() {
-  this.vel = new Victor(0, 0);
-  this.acc = new Victor(0.1, 0.1);
-  this.beh.ValInit();
-};
-
 Bot.prototype.Update = function(world, dt) {
-  this.acc = this.beh.Update(this, world);
+  this.vel = this.beh.Update(this, world);
 
   this.vel.add(this.acc);
-  if (this.vel.magnitude() > max_vel) {
+  if (this.vel.magnitude() > MAX_VEL) {
     this.vel = this.vel.norm();
-    this.vel = this.vel.limit(Number.MIN_VALUE, max_vel);
+    this.vel = this.vel.limit(Number.MIN_VALUE, MAX_VEL);
   }
   this.pos.add(this.vel);
   this.rot = this.vel.angle();
@@ -79,8 +72,8 @@ Bot.prototype.Update = function(world, dt) {
     if (this.pos.distance(world.food[i].center) < 7) {
       world.FoodEaten(world.food[i]);
       world.food.splice(i, 1);
-      this.energy += 100;
       i--;
+      this.energy += 200;
     }
   }
 
@@ -115,7 +108,7 @@ Bot.prototype.Draw = function(ctx) {
 
 function Behaviour() {
   this.routines = [];
-  for (var i = 0; i != 10; i++) {
+  for (var i = 0; i != 100; i++) {
     var routine = [];
     for (var j = 0; j != 5; j++) {
       routine.push({func: Random2(4), repeats: Random2(15)});
@@ -123,7 +116,8 @@ function Behaviour() {
     this.routines.push(routine);
   }
 
-  this.r_ptr = 0;
+  this.r_ptr = Random2(this.routines.length-1);
+  this.last_r_ptr = this.r_ptr;
   this.f_ptr = 0;
   this.repeat_cnt = 0;
 
@@ -133,45 +127,81 @@ function Behaviour() {
     rp: new Victor(4, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, 0), q: new Victor(60, 30),
-    rp: new Victor(4, 0), rq: new Victor(60, 30), accuracy: 1, hit: false
+    p: new Victor(4, 0), q: new Victor(55, 30),
+    rp: new Victor(4, 0), rq: new Victor(55, 30), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, 0), q: new Victor(60, -30),
-    rp: new Victor(4, 0), rq: new Victor(60, -30), accuracy: 1, hit: false
+    p: new Victor(4, 0), q: new Victor(55, -30),
+    rp: new Victor(4, 0), rq: new Victor(55, -30), accuracy: 1, hit: false
   });
+  console.log(this.SenseMag());
+  
+  this.MapSensesToActions();
 }
 
-Behaviour.prototype.Init = function(parent) {
-
+Behaviour.prototype.MapSensesToActions = function() {
+  var fn = function(active, rest, a) {
+    if (!active && !rest)
+      return;
+    if (!rest) {
+      a.push(active);
+    } else {
+      fn(active + rest[0], rest.slice(1), a);
+      fn(active, rest.slice(1), a);
+    }
+    return a;
+  };
+  
+  var sense_count = 0;
+  var str = "";
+  for (var i = 0; i != this.senses.length; i++) {
+    str += "" + sense_count++;
+  }
+  var arr = fn("", str, []);
+  
+  this.senses_to_routines = new Map();
+  this.senses_to_routines.set("", 0);
+  var count = 1;
+  for (var i = 0; i != arr.length; i++) {
+    this.senses_to_routines.set(arr[i], count++);
+  }
 };
 
-Behaviour.prototype.ValInit = function() {
-  this.routines = [];
-  var routine = [];
-  for (var j = 0; j != 5; j++) {
-    routine.push({func: 2, repeats: 1});
+Behaviour.prototype.SenseMag = function() {
+  var mag = 0;
+  for (var i = 0; i != this.senses.length; i++) {
+    mag += this.senses[i].p.distance(this.senses[i].q) * 
+           1/this.senses[i].accuracy;
   }
-  this.routines.push(routine);
+  return mag;
+};
 
-  this.r_ptr = 0;
-  this.f_ptr = 0;
-  this.repeat_cnt = 0;
-
+Behaviour.prototype.Init = function(par) {
+  this.routines = [];
+  for (var i = 0; i != par.routines.length; i++) {
+    var routine = [];
+    for (var j = 0; j != 5; j++) {
+      var command = par.routines[i][j];
+      if (Random2(MUT_FUNC) == 0) command.func = Random2(4);
+      if (Random2(MUT_REPEATS) == 0) command.repeats = Random2(15);
+      routine.push(command);
+    }
+    this.routines.push(routine);
+  }
+  
   this.senses = [];
-  this.senses.push({
-    p: new Victor(4, 0), q: new Victor(80, 0),
-    rp: new Victor(4, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
-  });
-  this.senses.push({
-    p: new Victor(4, 0), q: new Victor(60, 30),
-    rp: new Victor(4, 0), rq: new Victor(60, 30), accuracy: 1, hit: false
-  });
-  this.senses.push({
-    p: new Victor(4, 0), q: new Victor(60, -30),
-    rp: new Victor(4, 0), rq: new Victor(60, -30), accuracy: 1, hit: false
-  });
-}
+  for (var i = 0; i != par.senses.length; i++) {
+    var newq = new Victor(par.senses[i].q.x + Random2(4)-2,
+                          par.senses[i].q.y + Random2(4)-2)
+    var sense = {p: par.senses[i].p, q: newq,
+                 rp: par.senses[i].rp, rq: par.senses[i].rq, 
+                 accuracy: par.senses[i].accuracy};
+    this.senses.push(sense);
+  }
+  if (this.SenseMag() > MAX_SENSE_MAG) {
+    this.senses = par.senses;
+  }
+};
 
 Behaviour.prototype.Draw = function(ctx, bot) {
   for (var i = 0; i != this.senses.length; i++) {
@@ -199,15 +229,39 @@ Behaviour.prototype.Draw = function(ctx, bot) {
 };
 
 Behaviour.prototype.Update = function(bot, world) {
-  var old_acc = new Victor(bot.acc.x, bot.acc.y);
-  switch (this.routines[this.r_ptr][this.f_ptr].func) {
-    case 0: bot.acc = this.Accelerate(bot.acc); bot.energy -= 4; break;
-    case 1: bot.acc = this.Decelerate(bot.acc); break;
-    case 2: bot.acc = this.TurnLeft(bot.acc); bot.energy -= 1; break;
-    case 3: bot.acc = this.TurnRight(bot.acc); bot.energy -= 1; break;
+  var on_senses = "";
+  for (var i = 0; i != this.senses.length; i++) {
+    this.senses[i].hit = false;
+    for (var j = 0; j != world.food.length; j++) {
+      if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
+        if (LineIntersects(this.senses[i].rp, this.senses[i].rq,
+                           world.food[j].tl, world.food[j].br)) {
+          this.senses[i].hit = true;
+          on_senses += "" + i;
+          break;
+        }
+      }
+    }
   }
-  if (isNaN(bot.acc.x) || isNaN(bot.acc.y)) {
-    bot.acc = old_acc;
+  
+  this.r_ptr = this.senses_to_routines.get(on_senses);
+  
+  if (this.r_ptr != this.last_r_ptr) {
+    this.repeat_cnt = 0;
+    this.f_ptr = 0;
+  }
+  
+  this.last_r_ptr = this.r_ptr;
+  
+  var old_vel = new Victor(bot.vel.x, bot.vel.y);
+  switch (this.routines[this.r_ptr][this.f_ptr].func) {
+    case 0: bot.vel = this.Accelerate(bot.vel); bot.energy -= 5; break;
+    case 1: bot.vel = this.Decelerate(bot.vel); break;
+    case 2: bot.vel = this.TurnLeft(bot.vel); bot.energy -= 0; break;
+    case 3: bot.vel = this.TurnRight(bot.vel); bot.energy -= 0; break;
+  }
+  if (isNaN(bot.vel.x) || isNaN(bot.vel.y)) {
+    bot.vel = old_vel;
   }
   this.repeat_cnt++;
   if (this.repeat_cnt >= this.routines[this.r_ptr][this.f_ptr].repeats) {
@@ -218,19 +272,7 @@ Behaviour.prototype.Update = function(bot, world) {
     this.repeat_cnt = 0;
   }
 
-  for (var i = 0; i != this.senses.length; i++) {
-    this.senses[i].hit = false;
-    for (var j = 0; j != world.food.length; j++) {
-      if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
-        if (LineIntersects(this.senses[i].rp, this.senses[i].rq,
-                           world.food[j].tl, world.food[j].br)) {
-          this.senses[i].hit = true;
-        }
-      }
-    }
-  }
-
-  return bot.acc;
+  return bot.vel;
 };
 
 Behaviour.prototype.ToString = function() {
@@ -245,14 +287,22 @@ Behaviour.prototype.ToString = function() {
   return s;
 };
 
+Behaviour.prototype.RoutineToString = function(i) {
+  var s = "";
+  for (var j = 0; j != this.routines[i].length; j++) {
+    s += this.routines[i][j].func + "," + this.routines[i][j].repeats + " ";
+  }
+  return s;
+};
+
 Behaviour.prototype.Accelerate = function(vec) {
   vec.multiply(1.1);
   return vec;
 };
 
 Behaviour.prototype.Decelerate = function(vec) {
-  vec.x = vec.x/10;
-  vec.y = vec.y/10;
+  vec.x = vec.x/100;
+  vec.y = vec.y/100;
   return vec;
 };
 
@@ -270,9 +320,14 @@ function World(w, h, m) {
   this.width = w;
   this.height = h;
   this.margin = m;
+  
+  this.bots = [];
+  for (var i = 0; i != BOT_COUNT; i++) {
+    this.bots.push(new Bot(this));
+  }
 
   this.food = [];
-  for (var i = 0; i != food_count; i++) {
+  for (var i = 0; i != FOOD_COUNT; i++) {
     this.NewFood();
   }
 
@@ -282,7 +337,7 @@ function World(w, h, m) {
 World.prototype.NewFood = function() {
   var i = this.food.length;
   this.food.push({
-    pos: undefined, tl: undefined, br: undefined, center: undefined
+    pos: undefined, tl: undefined, br: undefined, center: undefined,
   });
   this.food[i].pos = new Victor(Random2(this.width-margin*2) + margin, 
                                 Random2(this.height-margin*2) + margin);
@@ -295,26 +350,37 @@ World.prototype.NewFood = function() {
 };
 
 World.prototype.Update = function(dt) {
+  for (var i = 0; i < this.bots.length; i++) {
+    if (this.bots[i].Update(this, dt)) {
+      this.bots.splice(i--, 1);
+    }
+  }
+  
   for (var i = 0; i != this.animations.length; i++) {
     if (this.animations[i].Update(dt)) {
       this.animations.splice(i, 1);
       i--;
     }
   }
-  if (this.food.length < food_count) {
+  if (this.food.length < FOOD_COUNT) {
     this.NewFood();
   }
 };
 
 World.prototype.Draw = function(ctx) {
+  for (var i = 0; i < this.bots.length; i++) {
+    ctx = this.bots[i].Draw(ctx);
+  }
+  
   for (var i = 0; i != this.food.length; i++) {
     ctx.save();
     ctx.translate(this.food[i].pos.x, this.food[i].pos.y);
     ctx.drawImage(foodimg, 0, 0);
     ctx.restore();
     
-    if (debug)
-      ctx = DrawLineVic(ctx, this.food[i].tl, this.food[i].br, "#FFFFFF", 1);
+    if (debug) {
+      //ctx = DrawLineVic(ctx, this.food[i].tl, this.food[i].br, "#FFFFFF", 1);
+    }
   }
 
   for (var i = 0; i != this.animations.length; i++) {
@@ -325,6 +391,51 @@ World.prototype.Draw = function(ctx) {
 
 World.prototype.FoodEaten = function(food) {
   this.animations.push(new Animated(food.pos, fooddie, 8, 2, 16));
+};
+
+World.prototype.NextGen = function() {
+  var total_energy = 0;
+  for (var i = 0; i != this.bots.length; i++) {
+    total_energy += this.bots[i].energy;
+  }
+  console.log(total_energy);
+  
+  var new_bots = [];
+  for (var j = 0; j != BEST_EXTRACTION_COUNT; j++) {
+    var best_score = Number.MIN_VALUE, best_idx = 0;
+    for (var i = 0; i != this.bots.length; i++) {
+      if (this.bots[i].energy > best_score) {
+        best_score = this.bots[i].energy;
+        best_idx = i;
+      }
+    }
+    var best = this.bots[best_idx];
+    for (var i = 0; i != CHILDREN_COUNT; i++) {
+      var bot = new Bot(this);
+      bot.Init(best.beh);
+      new_bots.push(bot);
+    }
+    this.bots.splice(best_idx, 1);
+  }
+  this.bots = new_bots;
+
+  this.food = [];
+  for (var i = 0; i != FOOD_COUNT; i++) {
+    this.NewFood();
+  }
+
+  this.animations = [];
+  
+  this.food = [];
+  for (var i = 0; i != FOOD_COUNT; i++) {
+    this.NewFood();
+  }
+};
+
+World.prototype.MouseMove = function(mouse_pos) {
+  for (var i = 0; i != this.bots.length; i++) {
+    this.bots[i].MouseHit(mouse_pos);
+  }
 };
 
 function Animated(pos, img, frame_count, fr, size) {
