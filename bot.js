@@ -1,11 +1,10 @@
 var botimg, bihw, bihh, bothigh, bhhw, bhhh;
-var radius;
 var foodimg, fihw, fihh, food_particle, fooddie;
 var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
 
 var BOT_COUNT = 50, FOOD_COUNT = 150, MUT_FUNC = 15, MUT_REPEATS = 3,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 2, 
-    MAX_SENSE_MAG = 200;
+    MAX_SENSE_MAG = 200, MOUSE_BOT_RADIUS = 15;
 
 Init();
 
@@ -19,8 +18,6 @@ function Init() {
   bothigh.src = 'res/bothigh.png';
   bhhw = 8;
   bhhh = 8;
-
-  radius = 8;
 
   foodimg = new Image();
   foodimg.src = 'res/food.png';
@@ -82,7 +79,7 @@ Bot.prototype.Update = function(world, dt) {
 };
 
 Bot.prototype.MouseHit = function(mouse_pos) {
-  if (this.pos.distance(mouse_pos) < radius) {
+  if (this.pos.distance(mouse_pos) < MOUSE_BOT_RADIUS) {
     this.highlighted = true;
   } else {
     this.highlighted = false;
