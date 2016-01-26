@@ -9,7 +9,7 @@
 
 <body>
 
-<canvas id="canvas" width="1200" height="600"></canvas>
+<canvas id="canvas" width="400" height="350"></canvas>
 
 <meta charset="utf-8">
 
@@ -19,12 +19,14 @@
 
 <script>
 
-var w = 1200, h = 600;
+var w = 400, h = 350, margin = 10;
 var fps, last_date, second = 0;
 var canvas = document.getElementById('canvas');
 
-var world = new World(w, h);
+var world = new World(w, h, margin);
 var bots = [];
+
+var debug = true;
 
 Init();
 
@@ -37,7 +39,7 @@ function GetMousePos(canvas, evt) {
 }
 
 function Init() {
-  for (var i = 0; i != 250; i++) {
+  for (var i = 0; i != 10; i++) {
     bots.push(new Bot(world));
   }
 
@@ -63,10 +65,7 @@ function FpsLog() {
   second += dt*1000;
   if (second > 1000) {
     second = 0;
-    //console.log(fps);
-    for (var i = 0; i != bots.length; i++) {
-      //console.log(bots[i].pos);
-    }
+    console.log(fps);
   }
   return dt;
 }
