@@ -3,29 +3,45 @@
 <head>
 <style>
 
+#chart svg {
+  height: 500px;
+  width: 1200px;
+}
+
 </style>
+
+<link rel="stylesheet" type="text/css" href="nv.d3.css">
 
 </head>
 
 <body>
-
+<div>
 <canvas id="canvas" width="400" height="600"></canvas>
+</div>
+
+<div id="chart">
+    <svg></svg>
+</div>
 
 <meta charset="utf-8">
 
 <script src="util.js"></script>
 <script src="bot.js"></script>
 <script src="victor.min.js"></script>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="nv.d3.js"></script>
 
 <script>
 var w = window.innerWidth*0.8, h = window.innerHeight*0.9, margin = 30, 
     gen_time = 10, second_count = 0;
+    
 var fps, saved_fps = 0, last_date, second = 0;
 var canvas = document.getElementById('canvas');
 canvas.setAttribute("width", w);
 canvas.setAttribute("height", h);
 
 var world = new World(w, h, margin);
+var energy_history = [], energy_data = [];
 
 var debug = true;
 
@@ -63,7 +79,11 @@ function FpsLog() {
     second = 0;
     second_count++;
     if (second_count % gen_time == 0) {
-      world.NextGen();
+      energy_history.push({x: energy_history.length, y: world.NextGen()});
+      energy_data = [];
+      energy_data.push({values: energy_history, 
+                        key: "Energy", color: "#FF7F0E"});
+      MakeEnergyTrend();
     }
   }
   return dt;
@@ -87,6 +107,35 @@ function Draw() {
  
   window.requestAnimationFrame(Draw);
 }
+
+function MakeEnergyTrend() {
+  nv.addGraph(function() {
+    var chart = nv.models.lineChart()
+                  .margin({left: 100})
+                  .useInteractiveGuideline(true)
+                  .transitionDuration(350)
+                  .showLegend(true)
+                  .showYAxis(true)
+                  .showXAxis(true)
+    ;
+  
+    chart.xAxis
+        .axisLabel('Generation');
+  
+    chart.yAxis
+        .axisLabel('Total Energy')
+        .tickFormat(d3.format('.0f'));
+  
+    d3.select('#chart svg')
+        .datum(energy_data)
+        .call(chart);
+  
+    nv.utils.windowResize(function() { chart.update() });
+    return chart;
+  });
+}
+
+
 
 </script>
 

@@ -427,6 +427,8 @@ World.prototype.NextGen = function() {
   for (var i = 0; i != FOOD_COUNT; i++) {
     this.NewFood();
   }
+  
+  return total_energy;
 };
 
 World.prototype.MouseMove = function(mouse_pos) {
