@@ -2,10 +2,10 @@ var botimg, bihw, bihh, bothigh, bhhw, bhhh;
 var foodimg, fihw, fihh, food_particle, fooddie;
 var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
 
-var BOT_COUNT = 50, FOOD_COUNT = 150, MUT_FUNC = 20, MUT_REPEATS = 5,
+var BOT_COUNT = 50, FOOD_COUNT = 100, MUT_FUNC = 20, MUT_REPEATS = 5,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
     MAX_SENSE_MAG = 200, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
-    MOVE_COST = 0, MOVE_COST_ON = false;
+    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 4;
 
 Init();
 
@@ -203,14 +203,15 @@ Behaviour.prototype.Init = function(par) {
       q: new Victor(par.senses[i].q.x, par.senses[i].q.y),
       rp: new Victor(0, 0), rq: new Victor(0, 0), accuracy: 0
     });
-    var newq = new Victor(par.senses[i].q.x + Random2(4)-2,
-                          par.senses[i].q.y + Random2(4)-2)
+    var newq = new Victor(
+      par.senses[i].q.x + Random2(SENSE_MUTATION)-SENSE_MUTATION/2,
+      par.senses[i].q.y + Random2(SENSE_MUTATION)-SENSE_MUTATION/2)
     var sense = {p: par.senses[i].p, q: newq,
                  rp: par.senses[i].rp, rq: par.senses[i].rq, 
                  accuracy: par.senses[i].accuracy};
     this.senses.push(sense);
   }
-  if (!mutate_senses || this.SenseMag() > MAX_SENSE_MAG) {
+  if (this.SenseMag() > MAX_SENSE_MAG) {
     this.senses = old_senses;
   }
 };
@@ -365,6 +366,26 @@ World.prototype.NewFood = function() {
                                    this.food[i].pos.y + 4);  
 };
 
+World.prototype.NewFoodCentred = function(x, y) {
+  var newx, newy;
+  do {
+    newx = x + Random2(100) - 50;
+    newy = y + Random2(100) - 50;
+  } while (!(newx > this.margin && newx < this.width - this.margin &&
+             newy > this.margin && newy < this.height - this.margin));
+  var i = this.food.length;
+  this.food.push({
+    pos: undefined, tl: undefined, br: undefined, center: undefined,
+  });
+  this.food[i].pos = new Victor(newx, newy);
+  this.food[i].tl = new Victor(this.food[i].pos.x - 1, 
+                               this.food[i].pos.y - 1);
+  this.food[i].br = new Victor(this.food[i].pos.x + 9, 
+                               this.food[i].pos.y + 9);
+  this.food[i].center = new Victor(this.food[i].pos.x + 4, 
+                                   this.food[i].pos.y + 4);  
+};
+
 World.prototype.Update = function(dt) {
   for (var i = 0; i < this.bots.length; i++) {
     if (this.bots[i].Update(this, dt)) {
@@ -379,7 +400,11 @@ World.prototype.Update = function(dt) {
     }
   }
   if (this.food.length < FOOD_COUNT) {
-    this.NewFood();
+    while (this.food.length < FOOD_COUNT) {
+      this.NewFood();
+    }
+  } else if (this.food.length > FOOD_COUNT) {
+    this.food.splice(0, this.food.length - FOOD_COUNT);
   }
 };
 

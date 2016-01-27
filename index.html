@@ -8,6 +8,16 @@
   width: 1200px;
 }
 
+#buttons {
+  position: absolute; 
+  top: 50px; 
+  left: 50px;
+}
+
+.lab {
+  color: #DDDDDD;
+}
+
 </style>
 
 <link rel="stylesheet" type="text/css" href="nv.d3.css">
@@ -15,10 +25,46 @@
 </head>
 
 <body>
+
+<div id="buttons">
+<button onclick="debug = !debug;" type="button">Debug</button>
+<button onclick="NextGen()" type="button">NextGen</button>
+<br>
   
+<label class="lab">Func Mutation</label>&nbsp
+<output class="lab" for=MUT_FUNC_RATE id=mfr>20</output>
+<br>
 <input name="MUT_FUNC_RATE" id="MUT_FUNC_RATE" type="range" min="1" 
        max="100" step="1" value="20"
-       style="position:absolute; top:50px; left:50px; z-index:2"/>
+       style="position:relative; top: 0px; left: 0px; z-index:2"/>
+<br>
+<label class="lab">Repeat Mutation</label>&nbsp
+<output class="lab" for=REP_FUNC_RATE id=rfr>5</output>
+<br>
+<input name="REP_FUNC_RATE" id="REP_FUNC_RATE" type="range" min="1" 
+       max="50" step="1" value="5"
+       style="position:relative; top: 0px; left: 0px; z-index:2"/>
+<br>
+<label class="lab">Sense Mutation</label>&nbsp
+<output class="lab" for=SENSE_MUTATION id=sm>20</output>
+<br>
+<input name="SENSE_MUTATION" id="SENSE_MUTATION" type="range" min="0" 
+       max="20" step="1" value="4"
+       style="position:relative; top: 0px; left: 0px; z-index:2"/>
+<br>
+<label class="lab">Gen Time</label>&nbsp
+<output class="lab" for=GEN_TIME id=gt>10</output>
+<br>
+<input name="GEN_TIME" id="GEN_TIME" type="range" min="1" 
+       max="60" step="1" value="10"
+       style="position:relative; top: 0px; left: 0px; z-index:2"/>
+<br>
+<label class="lab">Food Count</label>&nbsp
+<output class="lab" for=FOOD_COUNT id=fc>100</output>
+<input name="FOOD_COUNT" id="FOOD_COUNT" type="range" min="10" 
+       max="500" step="1" value="100"
+       style="position:relative; top: 0px; left: 0px; z-index:2"/>
+</div>
 
   
 <div>
@@ -39,13 +85,12 @@
 <script src="nv.d3.js"></script>
 
 <script>
-var w = window.innerWidth*0.978, h = window.innerHeight*0.9, margin = 30, 
-    gen_time = 10, second_count = 0;
+var w = window.innerWidth*0.978, h = window.innerHeight*0.94, margin = 30, 
+    GEN_TIME = 10, second_count = 0;
     
 var menu_rect = {x: window.innerWidth*0.8, y: 0, 
-                 w: window.innerWidth*0.178, h: window.innerHeight*0.9};
-                 
-var buttons = [];
+                 w: window.innerWidth*0.178, h: window.innerHeight*0.94};
+
     
 var fps, saved_fps = 0, last_date, second = 0;
 var canvas = document.getElementById('canvas');
@@ -55,7 +100,7 @@ canvas.setAttribute("height", h);
 var world = new World(window.innerWidth*0.8, h, margin);
 var energy_history = [], energy_data = [], average_beh = [];
 
-var debug = true, mutate_senses = false;
+var debug = true;
 
 Init();
 
@@ -68,50 +113,15 @@ function GetMousePos(canvas, evt) {
 }
 
 function Init() {
-  document.getElementById("MUT_FUNC_RATE").style.top =
+  document.getElementById("buttons").style.top =
     "" + menu_rect.y + 380 + "px";
-  document.getElementById("MUT_FUNC_RATE").style.left =
-    "" + menu_rect.x + 20 + "px";
+  document.getElementById("buttons").style.left =
+    "" + (Math.floor(menu_rect.x) + 16) + "px";
   
   canvas.addEventListener('mousemove', function(evt) {
     var mouse_pos = GetMousePos(canvas, evt);
     world.MouseMove(mouse_pos);
-    for (var i = 0; i != buttons.length; i++) {
-      if (buttons[i].Hit(mouse_pos)) {
-        buttons[i].Highlight(true);
-      } else {
-        buttons[i].Highlight(false);
-      }
-    }
   }, false);
-  
-  canvas.addEventListener('click', function(evt) {
-    var mouse_pos = GetMousePos(canvas, evt);
-    for (var i = 0; i != buttons.length; i++) {
-      if (buttons[i].Hit(mouse_pos)) {
-        switch (buttons[i].name) {
-          case "DEBUG": 
-            debug = !debug; break;
-          case "MOVECOST": 
-            MOVE_COST_ON = !MOVE_COST_ON; 
-            MOVE_COST = MOVE_COST_ON ? 3 : 0;
-            break;
-          case "NEXTGEN":
-            NextGen();
-        }
-      }
-    }
-  }, false);
-
-  buttons.push(new Button(menu_rect.x + 16, menu_rect.y + 350, "Debug", 
-                          "14px serif", "#222222", "#DDDDDD", "DEBUG",
-                          canvas.getContext('2d')));
-  buttons.push(new Button(menu_rect.x + 65, menu_rect.y + 350, "MoveCost", 
-                          "14px serif", "#222222", "#DDDDDD", "MOVECOST",
-                          canvas.getContext('2d')));
-  buttons.push(new Button(menu_rect.x + 133, menu_rect.y + 350, "NextGen", 
-                          "14px serif", "#222222", "#DDDDDD", "NEXTGEN",
-                          canvas.getContext('2d')));
 
   window.requestAnimationFrame(Draw);
 }
@@ -130,7 +140,7 @@ function FpsLog() {
     saved_fps = fps;
     second = 0;
     second_count++;
-    if (second_count % gen_time == 0) {
+    if (second_count % GEN_TIME == 0) {
       NextGen();
     }
   }
@@ -181,9 +191,7 @@ function Draw() {
                  8, 8);
   }
  
-  for (var i = 0; i != buttons.length; i++) {
-    ctx = buttons[i].Draw(ctx);
-  }
+  ButtonUpdate();
  
   window.requestAnimationFrame(Draw);
 }
@@ -213,6 +221,23 @@ function MakeEnergyTrend() {
     nv.utils.windowResize(function() { chart.update() });
     return chart;
   });
+}
+
+function ButtonUpdate() {
+  MUT_FUNC = (document.querySelector('#MUT_FUNC_RATE').value);
+  document.querySelector('#mfr').value = MUT_FUNC;
+  
+  MUT_REPEATS = (document.querySelector('#REP_FUNC_RATE').value);
+  document.querySelector('#rfr').value = MUT_REPEATS;
+  
+  GEN_TIME = (document.querySelector('#GEN_TIME').value);
+  document.querySelector('#gt').value = GEN_TIME;
+  
+  FOOD_COUNT = (document.querySelector('#FOOD_COUNT').value);
+  document.querySelector('#fc').value = FOOD_COUNT;
+  
+  SENSE_MUTATION = (document.querySelector('#SENSE_MUTATION').value);
+  document.querySelector('#sm').value = SENSE_MUTATION;
 }
 
 
