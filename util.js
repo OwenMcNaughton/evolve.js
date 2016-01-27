@@ -10,7 +10,7 @@ function Random() {
 
 function Random2(upper) {
   var x = Math.sin(seed++) * 10000;
-  return Math.round(((x - Math.floor(x))*upper));
+  return Math.floor(((x - Math.floor(x))*upper));
 }
 
 function RotatePointIntl(px, py, ox, oy, angle) {
@@ -74,17 +74,40 @@ function NumberCombo(str) {
   return combos;
 }
 
-function Combinations(str) {
-  var fn = function(active, rest, a) {
-    if (!active && !rest)
-      return;
-    if (!rest) {
-      a.push(active);
-    } else {
-      fn(active + rest[0], rest.slice(1), a);
-      fn(active, rest.slice(1), a);
-    }
-    return a;
-  }
-  return fn("", str, []);
+function Button(x, y, text, font, box_color, font_color, name, ctx) {
+  ctx.font = font;
+  this.x = x;
+  this.y = y;
+  this.w = ctx.measureText(text).width;
+  this.h = 15;
+  this.text = text;
+  this.box_color = box_color;
+  this.font_color = font_color;
+  this.highlight = false;
+  this.name = name;
 }
+
+Button.prototype.Draw = function(ctx) {
+  if (this.highlight) {
+    ctx.fillStyle = this.font_color;
+    ctx.fillRect(this.x-4, this.y-4, this.w+8, this.h+8);
+  }
+  
+  ctx.fillStyle = this.box_color;
+  ctx.fillRect(this.x-2, this.y-2, this.w+4, this.h+4);
+  ctx.fillStyle = this.font_color;
+  ctx.fillText(this.text, this.x, this.y+this.h-3);
+  return ctx;
+};
+
+Button.prototype.Hit = function(mouse_pos) {
+  return PointInRect(mouse_pos.x, mouse_pos.y, this.x, this.y, this.w, this.h);
+};
+
+Button.prototype.Highlight = function(b) {
+  this.highlight = b;
+};
+
+function PointInRect(x, y, rx, ry, rw, rh) {
+  return x > rx && x < rx + rw && y > ry && y < ry + rh;
+};

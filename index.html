@@ -15,8 +15,15 @@
 </head>
 
 <body>
+  
+<input name="MUT_FUNC_RATE" id="MUT_FUNC_RATE" type="range" min="1" 
+       max="100" step="1" value="20"
+       style="position:absolute; top:50px; left:50px; z-index:2"/>
+
+  
 <div>
 <canvas id="canvas" width="400" height="600"></canvas>
+
 </div>
 
 <div id="chart">
@@ -32,18 +39,23 @@
 <script src="nv.d3.js"></script>
 
 <script>
-var w = window.innerWidth*0.8, h = window.innerHeight*0.9, margin = 30, 
+var w = window.innerWidth*0.978, h = window.innerHeight*0.9, margin = 30, 
     gen_time = 10, second_count = 0;
+    
+var menu_rect = {x: window.innerWidth*0.8, y: 0, 
+                 w: window.innerWidth*0.178, h: window.innerHeight*0.9};
+                 
+var buttons = [];
     
 var fps, saved_fps = 0, last_date, second = 0;
 var canvas = document.getElementById('canvas');
 canvas.setAttribute("width", w);
 canvas.setAttribute("height", h);
 
-var world = new World(w, h, margin);
-var energy_history = [], energy_data = [];
+var world = new World(window.innerWidth*0.8, h, margin);
+var energy_history = [], energy_data = [], average_beh = [];
 
-var debug = true;
+var debug = true, mutate_senses = false;
 
 Init();
 
@@ -56,10 +68,50 @@ function GetMousePos(canvas, evt) {
 }
 
 function Init() {
+  document.getElementById("MUT_FUNC_RATE").style.top =
+    "" + menu_rect.y + 380 + "px";
+  document.getElementById("MUT_FUNC_RATE").style.left =
+    "" + menu_rect.x + 20 + "px";
+  
   canvas.addEventListener('mousemove', function(evt) {
     var mouse_pos = GetMousePos(canvas, evt);
     world.MouseMove(mouse_pos);
+    for (var i = 0; i != buttons.length; i++) {
+      if (buttons[i].Hit(mouse_pos)) {
+        buttons[i].Highlight(true);
+      } else {
+        buttons[i].Highlight(false);
+      }
+    }
   }, false);
+  
+  canvas.addEventListener('click', function(evt) {
+    var mouse_pos = GetMousePos(canvas, evt);
+    for (var i = 0; i != buttons.length; i++) {
+      if (buttons[i].Hit(mouse_pos)) {
+        switch (buttons[i].name) {
+          case "DEBUG": 
+            debug = !debug; break;
+          case "MOVECOST": 
+            MOVE_COST_ON = !MOVE_COST_ON; 
+            MOVE_COST = MOVE_COST_ON ? 3 : 0;
+            break;
+          case "NEXTGEN":
+            NextGen();
+        }
+      }
+    }
+  }, false);
+
+  buttons.push(new Button(menu_rect.x + 16, menu_rect.y + 350, "Debug", 
+                          "14px serif", "#222222", "#DDDDDD", "DEBUG",
+                          canvas.getContext('2d')));
+  buttons.push(new Button(menu_rect.x + 65, menu_rect.y + 350, "MoveCost", 
+                          "14px serif", "#222222", "#DDDDDD", "MOVECOST",
+                          canvas.getContext('2d')));
+  buttons.push(new Button(menu_rect.x + 133, menu_rect.y + 350, "NextGen", 
+                          "14px serif", "#222222", "#DDDDDD", "NEXTGEN",
+                          canvas.getContext('2d')));
 
   window.requestAnimationFrame(Draw);
 }
@@ -79,14 +131,19 @@ function FpsLog() {
     second = 0;
     second_count++;
     if (second_count % gen_time == 0) {
-      energy_history.push({x: energy_history.length, y: world.NextGen()});
-      energy_data = [];
-      energy_data.push({values: energy_history, 
-                        key: "Energy", color: "#FF7F0E"});
-      MakeEnergyTrend();
+      NextGen();
     }
   }
   return dt;
+}
+
+function NextGen() {
+  energy_history.push({x: energy_history.length, y: world.NextGen()});
+  energy_data = [];
+  energy_data.push({values: energy_history, 
+                    key: "Energy", color: "#FF7F0E"});
+  MakeEnergyTrend();
+  average_beh = world.AverageBehToString(); 
 }
 
 function Draw() {
@@ -104,6 +161,29 @@ function Draw() {
   ctx.fillStyle = "#DDDDDD";
   ctx.font = "14px serif";
   ctx.fillText(saved_fps.toFixed(2), 10, 20);
+  
+  ctx.fillStyle = "#666666";
+  ctx.fillRect(menu_rect.x, menu_rect.y, menu_rect.w, menu_rect.h);
+  ctx.fillStyle = "#444444";
+  ctx.fillRect(menu_rect.x+3, menu_rect.y+3, menu_rect.w-6, menu_rect.h-6);
+  
+  ctx.fillStyle = "#EEEEEE";
+  for (var i = 0; i != average_beh.length; i++) {
+    ctx.fillText(average_beh[i], menu_rect.x+8, menu_rect.y+13+20*i)
+  }
+
+  if (world.bot_focus != -1) {
+    for (var i = 0; i != world.focus_beh.length; i++) {
+      ctx.fillText(world.focus_beh[i], menu_rect.x+22, menu_rect.y+180+20*i);
+    }
+    ctx.fillRect(menu_rect.x + 8,
+                 menu_rect.y + 172 +world.bots[world.bot_focus].beh.r_ptr*20,
+                 8, 8);
+  }
+ 
+  for (var i = 0; i != buttons.length; i++) {
+    ctx = buttons[i].Draw(ctx);
+  }
  
   window.requestAnimationFrame(Draw);
 }
