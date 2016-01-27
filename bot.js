@@ -4,7 +4,7 @@ var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
 
 var BOT_COUNT = 50, FOOD_COUNT = 100, MUT_FUNC = 20, MUT_REPEATS = 5,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
-    MAX_SENSE_MAG = 200, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
+    MAX_SENSE_MAG = 400, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
     MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 4;
 
 Init();
@@ -102,8 +102,7 @@ Bot.prototype.Draw = function(ctx) {
     ctx.drawImage(botimg, -bihw, -bihh);
   }
   ctx.restore();
-  if (debug)
-    ctx = this.beh.Draw(ctx, this);
+  if (debug) ctx = this.beh.Draw(ctx, this);
   return ctx;
 };
 
@@ -219,31 +218,27 @@ Behaviour.prototype.Init = function(par) {
 Behaviour.prototype.Draw = function(ctx, bot) {
   for (var i = 0; i != this.senses.length; i++) {
     var r = this.senses[i];
-    r.rp.x = r.p.x + bot.pos.x; 
-    r.rp.y = r.p.y + bot.pos.y;
-    r.rq.x = r.q.x + bot.pos.x; 
-    r.rq.y = r.q.y + bot.pos.y;
-    r.rp = RotatePointRad(r.rp, new Victor(r.rp.x-4, r.rp.y), bot.rot);
-    r.rq = RotatePointRad(r.rq, new Victor(r.rp.x-4, r.rp.y), bot.rot);
     ctx.save();
     if (r.hit) {
-      ctx.save();
       ctx = DrawLineVic(ctx, r.rp, r.rq, sense_hit, 3);
-      ctx.restore();
     } else {
-      ctx.save();
       ctx = DrawLineVic(ctx, r.rp, r.rq, sense_miss, 3);
-      ctx.restore();
     }
     ctx.restore();
   }
-
   return ctx;
 };
 
 Behaviour.prototype.Update = function(bot, world) {
   var on_senses = "";
   for (var i = 0; i != this.senses.length; i++) {
+    var r = this.senses[i];
+    r.rp.x = r.p.x + bot.pos.x; 
+    r.rp.y = r.p.y + bot.pos.y;
+    r.rq.x = r.q.x + bot.pos.x; 
+    r.rq.y = r.q.y + bot.pos.y;
+    r.rp = RotatePointRad(r.rp, new Victor(r.rp.x-4, r.rp.y), bot.rot);
+    r.rq = RotatePointRad(r.rq, new Victor(r.rp.x-4, r.rp.y), bot.rot);
     this.senses[i].hit = false;
     for (var j = 0; j != world.food.length; j++) {
       if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
