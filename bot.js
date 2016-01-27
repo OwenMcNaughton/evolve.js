@@ -5,7 +5,7 @@ var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
 var BOT_COUNT = 50, FOOD_COUNT = 100, MUT_FUNC = 20, MUT_REPEATS = 5,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
     MAX_SENSE_MAG = 400, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
-    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 4;
+    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 0;
 
 Init();
 
@@ -38,6 +38,7 @@ function Bot(world) {
   this.acc = new Victor(0, 0)
                    .randomize(new Victor(-1, 1), new Victor(1, -1));
   this.rot = 0;
+  this.ang_rot = 0;
 
   this.highlighted = false;
 
@@ -61,6 +62,7 @@ Bot.prototype.Update = function(world, dt) {
   }
   this.pos.add(this.vel);
   this.rot = this.vel.angle();
+  
 
   if (this.pos.x > world.width) this.pos.x = 0;
   if (this.pos.x < 0) this.pos.x = world.width - 1;
@@ -108,17 +110,22 @@ Bot.prototype.Draw = function(ctx) {
 
 function Behaviour() {
   this.senses = [];
+  
   this.senses.push({
-    p: new Victor(4, 0), q: new Victor(80, 0),
-    rp: new Victor(4, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
+    p: new Victor(14, 0), q: new Victor(80, 0), id: "F",
+    rp: new Victor(14, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, 0), q: new Victor(55, 30),
-    rp: new Victor(4, 0), rq: new Victor(55, 30), accuracy: 1, hit: false
+    p: new Victor(0, 0), q: new Victor(10, 0), id: "C",
+    rp: new Victor(0, 0), rq: new Victor(10, 0), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, 0), q: new Victor(55, -30),
-    rp: new Victor(4, 0), rq: new Victor(55, -30), accuracy: 1, hit: false
+    p: new Victor(4, 4), q: new Victor(55, 30), id: "L",
+    rp: new Victor(4, 4), rq: new Victor(55, 30), accuracy: 1, hit: false
+  });
+  this.senses.push({
+    p: new Victor(4, -4), q: new Victor(55, -30), id: "R",
+    rp: new Victor(4, -4), rq: new Victor(55, -30), accuracy: 1, hit: false
   });
   
   this.MapSensesToActions();
@@ -151,10 +158,9 @@ Behaviour.prototype.MapSensesToActions = function() {
     return a;
   };
   
-  var sense_count = 0;
   var str = "";
   for (var i = 0; i != this.senses.length; i++) {
-    str += "" + sense_count++;
+    str += this.senses[i].id;
   }
   var arr = fn("", str, []);
   
@@ -199,13 +205,13 @@ Behaviour.prototype.Init = function(par) {
   for (var i = 0; i != par.senses.length; i++) {
     old_senses.push({
       p: new Victor(par.senses[i].p.x, par.senses[i].p.y),
-      q: new Victor(par.senses[i].q.x, par.senses[i].q.y),
+      q: new Victor(par.senses[i].q.x, par.senses[i].q.y), id: par.senses[i].id,
       rp: new Victor(0, 0), rq: new Victor(0, 0), accuracy: 0
     });
     var newq = new Victor(
       par.senses[i].q.x + Random2(SENSE_MUTATION)-SENSE_MUTATION/2,
       par.senses[i].q.y + Random2(SENSE_MUTATION)-SENSE_MUTATION/2)
-    var sense = {p: par.senses[i].p, q: newq,
+    var sense = {p: par.senses[i].p, q: newq, id: par.senses[i].id,
                  rp: par.senses[i].rp, rq: par.senses[i].rq, 
                  accuracy: par.senses[i].accuracy};
     this.senses.push(sense);
@@ -237,15 +243,15 @@ Behaviour.prototype.Update = function(bot, world) {
     r.rp.y = r.p.y + bot.pos.y;
     r.rq.x = r.q.x + bot.pos.x; 
     r.rq.y = r.q.y + bot.pos.y;
-    r.rp = RotatePointRad(r.rp, new Victor(r.rp.x-4, r.rp.y), bot.rot);
-    r.rq = RotatePointRad(r.rq, new Victor(r.rp.x-4, r.rp.y), bot.rot);
+    r.rp = RotatePointRad(r.rp, bot.pos, bot.rot);
+    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);
     this.senses[i].hit = false;
     for (var j = 0; j != world.food.length; j++) {
       if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
         if (LineIntersects(this.senses[i].rp, this.senses[i].rq,
                            world.food[j].tl, world.food[j].br)) {
           this.senses[i].hit = true;
-          on_senses += "" + i;
+          on_senses += this.senses[i].id;
           break;
         }
       }
@@ -260,6 +266,8 @@ Behaviour.prototype.Update = function(bot, world) {
   }
   
   this.last_r_ptr = this.r_ptr;
+  
+  bot.vel.x -= .007; bot.vel.y -= .007;
   
   var old_vel = new Victor(bot.vel.x, bot.vel.y);
   switch (this.routines[this.r_ptr][this.f_ptr].func) {

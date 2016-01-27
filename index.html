@@ -27,6 +27,15 @@
 <body>
 
 <div id="buttons">
+<label class="lab">Avg Behaviour</label>
+<br>
+<textarea rows='4' cols='29' id='AVG_BEH_BOX'></textarea>
+<br>
+<label class="lab">Selected Behaviour</label>
+<br>
+<textarea rows='4' cols='29' id='SEL_BEH_BOX'></textarea>
+<br><br>
+  
 <button onclick="debug = !debug;" type="button">Debug</button>
 <button onclick="NextGen()" type="button">NextGen</button>
 <br>
@@ -49,7 +58,7 @@
 <output class="lab" for=SENSE_MUTATION id=sm>20</output>
 <br>
 <input name="SENSE_MUTATION" id="SENSE_MUTATION" type="range" min="0" 
-       max="20" step="1" value="4"
+       max="20" step="1" value="0"
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br>
 <label class="lab">Gen Time</label>&nbsp
@@ -114,7 +123,7 @@ function GetMousePos(canvas, evt) {
 
 function Init() {
   document.getElementById("buttons").style.top =
-    "" + menu_rect.y + 380 + "px";
+    "" + menu_rect.y + 20 + "px";
   document.getElementById("buttons").style.left =
     "" + (Math.floor(menu_rect.x) + 16) + "px";
   
@@ -142,6 +151,10 @@ function FpsLog() {
     second_count++;
     if (second_count % GEN_TIME == 0) {
       NextGen();
+      document.getElementById("AVG_BEH_BOX").value = "";
+      for (var i = 0; i != average_beh.length; i++) {
+        document.getElementById("AVG_BEH_BOX").value += average_beh[i] + "\n";
+      }
     }
   }
   return dt;
@@ -178,19 +191,14 @@ function Draw() {
   ctx.fillRect(menu_rect.x+3, menu_rect.y+3, menu_rect.w-6, menu_rect.h-6);
   
   ctx.fillStyle = "#EEEEEE";
-  for (var i = 0; i != average_beh.length; i++) {
-    ctx.fillText(average_beh[i], menu_rect.x+8, menu_rect.y+13+20*i)
-  }
 
+  document.getElementById("SEL_BEH_BOX").value = "";
   if (world.bot_focus != -1) {
     for (var i = 0; i != world.focus_beh.length; i++) {
-      ctx.fillText(world.focus_beh[i], menu_rect.x+22, menu_rect.y+180+20*i);
+      document.getElementById("SEL_BEH_BOX").value += world.focus_beh[i] + "\n";
     }
-    ctx.fillRect(menu_rect.x + 8,
-                 menu_rect.y + 172 +world.bots[world.bot_focus].beh.r_ptr*20,
-                 8, 8);
   }
- 
+
   ButtonUpdate();
  
   window.requestAnimationFrame(Draw);
