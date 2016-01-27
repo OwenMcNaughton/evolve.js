@@ -5,7 +5,8 @@ var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
 var BOT_COUNT = 50, FOOD_COUNT = 100, MUT_FUNC = 20, MUT_REPEATS = 5,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
     MAX_SENSE_MAG = 400, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
-    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 0;
+    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 0,
+    MULTI_SENSE = false;
 
 Init();
 
@@ -71,10 +72,13 @@ Bot.prototype.Update = function(world, dt) {
 
   for (var i = 0; i != world.food.length; i++) {
     if (this.pos.distance(world.food[i].center) < 7) {
-      world.FoodEaten(world.food[i]);
-      world.food.splice(i, 1);
-      i--;
-      this.energy += 200;
+      this.energy += 50;
+      world.food[i].energy -= 50;
+      if (world.food[i].energy < 0) {
+        world.FoodEaten(world.food[i]);
+        world.food.splice(i, 1);
+        i--;
+      }
     }
   }
 
@@ -162,7 +166,12 @@ Behaviour.prototype.MapSensesToActions = function() {
   for (var i = 0; i != this.senses.length; i++) {
     str += this.senses[i].id;
   }
-  var arr = fn("", str, []);
+  var arr = [];
+  if (MULTI_SENSE) {
+    arr = fn("", str, []);
+  } else {
+    arr = str.split("");
+  }
   
   this.senses_to_routines_arr = [];
   this.senses_to_routines_arr.push("NA");
@@ -236,6 +245,16 @@ Behaviour.prototype.Draw = function(ctx, bot) {
 };
 
 Behaviour.prototype.Update = function(bot, world) {
+  for (var i = 0; i != this.senses.length; i++) {
+    var r = this.senses[i];
+    r.rp.x = r.p.x + bot.pos.x; 
+    r.rp.y = r.p.y + bot.pos.y;
+    r.rq.x = r.q.x + bot.pos.x; 
+    r.rq.y = r.q.y + bot.pos.y;
+    r.rp = RotatePointRad(r.rp, bot.pos, bot.rot);
+    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);    
+  }
+  
   var on_senses = "";
   for (var i = 0; i != this.senses.length; i++) {
     var r = this.senses[i];
@@ -244,7 +263,8 @@ Behaviour.prototype.Update = function(bot, world) {
     r.rq.x = r.q.x + bot.pos.x; 
     r.rq.y = r.q.y + bot.pos.y;
     r.rp = RotatePointRad(r.rp, bot.pos, bot.rot);
-    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);
+    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);    
+    var breaker = false;
     this.senses[i].hit = false;
     for (var j = 0; j != world.food.length; j++) {
       if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
@@ -252,10 +272,12 @@ Behaviour.prototype.Update = function(bot, world) {
                            world.food[j].tl, world.food[j].br)) {
           this.senses[i].hit = true;
           on_senses += this.senses[i].id;
+          breaker = true;
           break;
         }
       }
     }
+    if (breaker) break;
   }
   
   this.r_ptr = this.senses_to_routines.get(on_senses);
@@ -324,12 +346,12 @@ Behaviour.prototype.Decelerate = function(vec) {
 };
 
 Behaviour.prototype.TurnLeft = function(vec) {
-  vec.rotate(-.1);
+  vec.rotate(-.05);
   return vec;
 };
 
 Behaviour.prototype.TurnRight = function(vec) {
-  vec.rotate(.1);
+  vec.rotate(.05);
   return vec;
 };
 
@@ -357,7 +379,8 @@ function World(w, h, m) {
 World.prototype.NewFood = function() {
   var i = this.food.length;
   this.food.push({
-    pos: undefined, tl: undefined, br: undefined, center: undefined,
+    pos: undefined, tl: undefined, br: undefined,
+    center: undefined, energy: 5000
   });
   this.food[i].pos = new Victor(Random2(this.width-margin*2) + margin, 
                                 Random2(this.height-margin*2) + margin);
