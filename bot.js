@@ -3,7 +3,7 @@ var foodimg, fihw, fihh, food_particle, fooddie, foodeat, bullet;
 var sense_miss = "rgba(200, 50, 50, .3)", sense_hitv = "rgba(200, 200, 50, .5)",
     sense_hitb = "rgba(50, 200, 200, .5)";;
 
-var BOT_COUNT = 50, FOOD_COUNT = 60, MUT_FUNC = 20, MUT_REPEATS = 10,
+var BOT_COUNT = 100, FOOD_COUNT = 60, MUT_FUNC = 20, MUT_REPEATS = 10,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
     MAX_SENSE_MAG = 400, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
     MOVE_COST = 0, BULLET_COST = 50,
@@ -97,6 +97,13 @@ Bot.prototype.Update = function(world, dt) {
         world.food.splice(i, 1);
         i--;
       }
+    }
+  }
+  
+  for (var i = 0; i != world.spikes.length; i++) {
+    if (LineIntersects(this.br, this.tl, 
+                       world.spikes[i].p, world.spikes[i].q)) {
+      this.vel.invert();
     }
   }
 
@@ -322,6 +329,7 @@ Behaviour.prototype.Update = function(bot, world) {
     if (breaker) break;
   }
   
+/*
   for (var i = 0; i != this.senses.length; i++) {
     var r = this.senses[i];
     var breaker = false;
@@ -339,6 +347,7 @@ Behaviour.prototype.Update = function(bot, world) {
     }
     if (breaker) break;
   }
+*/
   
   this.r_ptr = this.senses_to_routines.get(on_senses);
   
@@ -436,9 +445,14 @@ function World(w, h, m) {
 
   this.animations = [];
   this.particles = [];
+  this.spikes = [];
   
   this.focus_beh = [];
   this.bot_focus = -1;
+  
+  this.mouse_is_down = false;
+  this.mouse_start = new Victor(0, 0);
+  this.drag_line = {p: this.mouse_start, q: new Victor(0, 0)};
 }
 
 World.prototype.InitFromString = function(str) {
@@ -533,6 +547,20 @@ World.prototype.Update = function(dt) {
 };
 
 World.prototype.Draw = function(ctx) {
+  for (var i = 0; i != this.animations.length; i++) {
+    ctx = this.animations[i].Draw(ctx);
+  }
+  
+  for (var i = 0; i != this.particles.length; i++) {
+    ctx = this.particles[i].Draw(ctx);
+  }
+  
+  for (var i = 0; i != this.spikes.length; i++) {
+    ctx = DrawLineVic(ctx, this.spikes[i].p, this.spikes[i].q, "#2222DD", 3);
+  }
+  
+  ctx = DrawLineVic(ctx, this.drag_line.p, this.drag_line.q, "#2222FF", 3);
+  
   for (var i = 0; i < this.bots.length; i++) {
     ctx = this.bots[i].Draw(ctx);
   }
@@ -546,14 +574,6 @@ World.prototype.Draw = function(ctx) {
     if (debug) {
       //ctx = DrawLineVic(ctx, this.food[i].tl, this.food[i].br, "#FFFFFF", 1);
     }
-  }
-
-  for (var i = 0; i != this.animations.length; i++) {
-    ctx = this.animations[i].Draw(ctx);
-  }
-  
-  for (var i = 0; i != this.particles.length; i++) {
-    ctx = this.particles[i].Draw(ctx);
   }
   
   return ctx;
@@ -585,9 +605,10 @@ World.prototype.NextGen = function() {
   for (var i = 0; i != this.bots.length; i++) {
     total_energy += this.bots[i].energy;
   }
+  total_energy /= this.bots.length;
   
   var new_bots = [];
-  for (var j = 0; j != BEST_EXTRACTION_COUNT; j++) {
+  for (var j = 0; j != BOT_COUNT/10 && j != this.bots.length; j++) {
     var best_score = Number.MIN_VALUE, best_idx = 0;
     for (var i = 0; i != this.bots.length; i++) {
       if (this.bots[i].energy > best_score) {
@@ -596,12 +617,15 @@ World.prototype.NextGen = function() {
       }
     }
     var best = this.bots[best_idx];
-    for (var i = 0; i != CHILDREN_COUNT; i++) {
+    for (var i = 0; i != 10; i++) {
       var bot = new Bot(this);
       bot.Init(best.beh);
       new_bots.push(bot);
     }
     this.bots.splice(best_idx, 1);
+  }
+  while (new_bots.length > BOT_COUNT) {
+    new_bots.splice(0, 1);
   }
   this.bots = new_bots;
 
@@ -629,6 +653,27 @@ World.prototype.MouseMove = function(mouse_pos) {
       }
     }
   }
+  
+  if (this.mouse_is_down) {
+    this.drag_line.q = new Victor(mouse_pos.x, mouse_pos.y);
+  }
+};
+
+World.prototype.MouseDown = function(mouse_pos) {
+  this.mouse_is_down = true;
+  this.mouse_start = new Victor(mouse_pos.x, mouse_pos.y);
+  this.drag_line.p = this.mouse_start;
+  this.drag_line.q = this.mouse_start;
+};
+
+World.prototype.MouseUp = function(mouse_pos) {
+  this.mouse_is_down = false;
+  this.spikes.push({
+    p: this.mouse_start.clone(), 
+    q: new Victor(mouse_pos.x, mouse_pos.y)
+  });
+  this.drag_line.p = new Victor(-100, -100);
+  this.drag_line.q = new Victor(-100, -100);
 };
 
 World.prototype.AverageBehToString = function() {

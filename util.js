@@ -64,16 +64,6 @@ function LineIntersects(p0, p1, q0, q1) {
   return false;
 }
 
-function NumberCombo(str) {
-  str = Combinations(str);
-  var combos = new Map();
-  var count = 0;
-  for (var i = 0; i != str.length; i++) {
-    combos.set(str[i], count++);
-  }
-  return combos;
-}
-
 function KeyOfMaxVal(map) {
   var max_val = Number.MIN_VALUE, max_key;
   for (var v of map) {
