@@ -73,3 +73,11 @@ function NumberCombo(str) {
   }
   return combos;
 }
+
+function KeyOfMaxVal(map) {
+  var max_val = Number.MIN_VALUE, max_key;
+  for (var v of map) {
+    if (v[1] > max_val) max_key = v[0];
+  }
+  return max_key;
+}

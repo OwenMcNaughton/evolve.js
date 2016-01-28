@@ -51,7 +51,7 @@
 <output class="lab" for=REP_FUNC_RATE id=rfr>5</output>
 <br>
 <input name="REP_FUNC_RATE" id="REP_FUNC_RATE" type="range" min="1" 
-       max="50" step="1" value="5"
+       max="50" step="1" value="10"
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br>
 <label class="lab">Sense Mutation</label>&nbsp
@@ -73,6 +73,12 @@
 <input name="FOOD_COUNT" id="FOOD_COUNT" type="range" min="10" 
        max="500" step="1" value="100"
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
+<br><br>
+
+<textarea rows='4' cols='29' id='IN_BEH'></textarea>
+<br>
+<button onclick="InitFromString()" type="button">InitFromString</button>
+
 </div>
 
   
@@ -160,6 +166,12 @@ function FpsLog() {
   return dt;
 }
 
+function InitFromString() {
+  world = new World(window.innerWidth*0.8, h, margin);
+  world.InitFromString(document.getElementById("IN_BEH").value);
+  energy_history = [], energy_data = [], average_beh = [];
+}
+
 function NextGen() {
   energy_history.push({x: energy_history.length, y: world.NextGen()});
   energy_data = [];
@@ -191,13 +203,6 @@ function Draw() {
   ctx.fillRect(menu_rect.x+3, menu_rect.y+3, menu_rect.w-6, menu_rect.h-6);
   
   ctx.fillStyle = "#EEEEEE";
-
-  document.getElementById("SEL_BEH_BOX").value = "";
-  if (world.bot_focus != -1) {
-    for (var i = 0; i != world.focus_beh.length; i++) {
-      document.getElementById("SEL_BEH_BOX").value += world.focus_beh[i] + "\n";
-    }
-  }
 
   ButtonUpdate();
  

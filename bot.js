@@ -1,43 +1,55 @@
 var botimg, bihw, bihh, bothigh, bhhw, bhhh;
-var foodimg, fihw, fihh, food_particle, fooddie;
-var sense_miss = "rgba(200, 50, 50, .3)", sense_hit = "rgba(200, 200, 50, .5)";
+var foodimg, fihw, fihh, food_particle, fooddie, foodeat, bullet;
+var sense_miss = "rgba(200, 50, 50, .3)", sense_hitv = "rgba(200, 200, 50, .5)",
+    sense_hitb = "rgba(50, 200, 200, .5)";;
 
-var BOT_COUNT = 50, FOOD_COUNT = 100, MUT_FUNC = 20, MUT_REPEATS = 5,
+var BOT_COUNT = 50, FOOD_COUNT = 60, MUT_FUNC = 20, MUT_REPEATS = 10,
     BEST_EXTRACTION_COUNT = 5, CHILDREN_COUNT = 10, MAX_VEL = 3, 
     MAX_SENSE_MAG = 400, MOUSE_BOT_RADIUS = 15, ROUTINE_LENGTH = 5,
-    MOVE_COST = 0, MOVE_COST_ON = false, SENSE_MUTATION = 0,
+    MOVE_COST = 0, BULLET_COST = 50,
+    SENSE_MUTATION = 0,
     MULTI_SENSE = false;
 
-Init();
+var ACC = "A", DEC = "D", TL = "L", TR = "R", SH = "S";
+var cmds = [ACC, DEC, TL, TR, SH];
 
-function Init() {
-  botimg = new Image();
-  botimg.src = 'res/bot.png';
-  bihw = 4;
-  bihh = 4;
+botimg = new Image();
+botimg.src = 'res/bot.png';
+bihw = 4;
+bihh = 4;
 
-  bothigh = new Image();
-  bothigh.src = 'res/bothigh.png';
-  bhhw = 8;
-  bhhh = 8;
+bothigh = new Image();
+bothigh.src = 'res/bothigh.png';
+bhhw = 8;
+bhhh = 8;
 
-  foodimg = new Image();
-  foodimg.src = 'res/food.png';
-  fihw = 4;
-  fihh = 4;
+foodimg = new Image();
+foodimg.src = 'res/food.png';
+fihw = 4;
+fihh = 4;
 
-  food_particle = new Image();
-  food_particle.src = 'res/food_particle.png';
+food_particle = new Image();
+food_particle.src = 'res/food_particle.png';
 
-  fooddie = new Image();
-  fooddie.src = 'res/fooddie.png';
-}
+fooddie = new Image();
+fooddie.src = 'res/fooddie.png';
+
+foodeat = new Image();
+foodeat.src = 'res/foodeat.png';
+
+bullet = new Image();
+bullet.src = 'res/bullet.png';
 
 function Bot(world) {
   this.pos = new Victor(Random() * (world.width), Random() * (world.height));
   this.vel = new Victor(0, 0);
-  this.acc = new Victor(0, 0)
-                   .randomize(new Victor(-1, 1), new Victor(1, -1));
+  this.vel.x += Math.random() - 0.5;
+  this.vel.y += Math.random() - 0.5;
+  this.acc = new Victor(0, 0);
+
+  this.tl = new Victor(this.pos.x - 4, this.pos.y - 4);
+  this.br = new Victor(this.pos.x + 4, this.pos.y + 4);
+
   this.rot = 0;
   this.ang_rot = 0;
 
@@ -52,16 +64,21 @@ Bot.prototype.Init = function(parent) {
   this.beh.Init(parent);
 };
 
+Bot.prototype.InitFromString = function(str) {
+  this.beh.InitFromString(str);
+};
+
 Bot.prototype.Update = function(world, dt) {
   this.vel = this.beh.Update(this, world);
 
   this.vel.add(this.acc);
-  this.acc.x /= 2; this.acc.y /= 2;
   if (this.vel.magnitude() > MAX_VEL) {
     this.vel = this.vel.norm();
     this.vel = this.vel.limit(Number.MIN_VALUE, MAX_VEL);
   }
   this.pos.add(this.vel);
+  this.br.x = this.pos.x + 4; this.br.y = this.pos.y + 4;
+  this.tl.x = this.pos.x - 4; this.tl.y = this.pos.y - 4;
   this.rot = this.vel.angle();
   
 
@@ -72,10 +89,11 @@ Bot.prototype.Update = function(world, dt) {
 
   for (var i = 0; i != world.food.length; i++) {
     if (this.pos.distance(world.food[i].center) < 7) {
+      world.FoodEating(world.food[i].pos.x, world.food[i].pos.y);
       this.energy += 50;
       world.food[i].energy -= 50;
       if (world.food[i].energy < 0) {
-        world.FoodEaten(world.food[i]);
+        world.FoodEaten(world.food[i].pos.x, world.food[i].pos.y);
         world.food.splice(i, 1);
         i--;
       }
@@ -124,11 +142,11 @@ function Behaviour() {
     rp: new Victor(0, 0), rq: new Victor(10, 0), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, 4), q: new Victor(55, 30), id: "L",
+    p: new Victor(4, 4), q: new Victor(55, 30), id: "R",
     rp: new Victor(4, 4), rq: new Victor(55, 30), accuracy: 1, hit: false
   });
   this.senses.push({
-    p: new Victor(4, -4), q: new Victor(55, -30), id: "R",
+    p: new Victor(4, -4), q: new Victor(55, -30), id: "L",
     rp: new Victor(4, -4), rq: new Victor(55, -30), accuracy: 1, hit: false
   });
   
@@ -138,7 +156,7 @@ function Behaviour() {
   for (var i = 0; i != this.reflex_count+1; i++) {
     var routine = [];
     for (var j = 0; j != ROUTINE_LENGTH; j++) {
-      routine.push({func: Random2(4), repeats: Random2(15)});
+      routine.push({func: cmds[Random2(cmds.length-1)], repeats: Random2(10)});
     }
     this.routines.push(routine);
   }
@@ -164,17 +182,19 @@ Behaviour.prototype.MapSensesToActions = function() {
   
   var str = "";
   for (var i = 0; i != this.senses.length; i++) {
-    str += this.senses[i].id;
+    str += this.senses[i].id + "v,";
+    //str += this.senses[i].id + "b,";
   }
   var arr = [];
   if (MULTI_SENSE) {
     arr = fn("", str, []);
   } else {
-    arr = str.split("");
+    arr = str.split(",");
+    arr.pop();
   }
   
   this.senses_to_routines_arr = [];
-  this.senses_to_routines_arr.push("NA");
+  this.senses_to_routines_arr.push("N");
   this.senses_to_routines = new Map();
   this.senses_to_routines.set("", 0);
   var count = 1;
@@ -195,6 +215,34 @@ Behaviour.prototype.SenseMag = function() {
   return mag;
 };
 
+Behaviour.prototype.InitFromString = function(str) {
+  var lines = str.split("\n");
+  var sense_strs = lines[0].split(";");
+  this.senses = [];
+  for (var i = 0; i != sense_strs.length; i++) {
+    var s = sense_strs[i].split(" ");
+    var sense = {
+      p: new Victor(Number(s[1]), Number(s[2])),
+      q: new Victor(Number(s[3]), Number(s[4])),
+      id: s[0], rp: undefined, rq: undefined, accuracy: Number(s[5])
+    };
+    sense.rp = sense.p.clone();
+    sense.rq = sense.q.clone();
+    this.senses.push(sense);
+  }
+  
+  this.routines = [];
+  for (var i = 1; i != lines.length; i++) {
+    var r_str = lines[i].split(" ");
+    var routine = [];
+    for (var j = 1; j != r_str.length; j++) {
+      var c_str = r_str[j].split("");
+      routine.push({func: c_str[0], repeats: Number(c_str[1])});
+    }
+    this.routines.push(routine);
+  }
+};
+
 Behaviour.prototype.Init = function(par) {
   this.routines = [];
   for (var i = 0; i != par.routines.length; i++) {
@@ -202,8 +250,8 @@ Behaviour.prototype.Init = function(par) {
     for (var j = 0; j != ROUTINE_LENGTH; j++) {
       var command = {func: par.routines[i][j].func,
                      repeats: par.routines[i][j].repeats};
-      if (Random2(MUT_FUNC) == 0) command.func = Random2(4);
-      if (Random2(MUT_REPEATS) == 0) command.repeats = Random2(15);
+      if (Random2(MUT_FUNC) == 0) command.func = cmds[Random2(cmds.length-1)];
+      if (Random2(MUT_REPEATS) == 0) command.repeats = Random2(10);
       routine.push(command);
     }
     this.routines.push(routine);
@@ -234,10 +282,10 @@ Behaviour.prototype.Draw = function(ctx, bot) {
   for (var i = 0; i != this.senses.length; i++) {
     var r = this.senses[i];
     ctx.save();
-    if (r.hit) {
-      ctx = DrawLineVic(ctx, r.rp, r.rq, sense_hit, 3);
-    } else {
-      ctx = DrawLineVic(ctx, r.rp, r.rq, sense_miss, 3);
+    switch (r.hit) {
+      case "": DrawLineVic(ctx, r.rp, r.rq, sense_miss, 3); break;
+      case "b": DrawLineVic(ctx, r.rp, r.rq, sense_hitb, 3); break;
+      case "v": DrawLineVic(ctx, r.rp, r.rq, sense_hitv, 3); break;
     }
     ctx.restore();
   }
@@ -246,32 +294,44 @@ Behaviour.prototype.Draw = function(ctx, bot) {
 
 Behaviour.prototype.Update = function(bot, world) {
   for (var i = 0; i != this.senses.length; i++) {
-    var r = this.senses[i];
+    var r = this.senses[i];  
+    this.senses[i].hit = "";
     r.rp.x = r.p.x + bot.pos.x; 
     r.rp.y = r.p.y + bot.pos.y;
     r.rq.x = r.q.x + bot.pos.x; 
     r.rq.y = r.q.y + bot.pos.y;
     r.rp = RotatePointRad(r.rp, bot.pos, bot.rot);
-    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);    
+    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot); 
   }
   
   var on_senses = "";
   for (var i = 0; i != this.senses.length; i++) {
     var r = this.senses[i];
-    r.rp.x = r.p.x + bot.pos.x; 
-    r.rp.y = r.p.y + bot.pos.y;
-    r.rq.x = r.q.x + bot.pos.x; 
-    r.rq.y = r.q.y + bot.pos.y;
-    r.rp = RotatePointRad(r.rp, bot.pos, bot.rot);
-    r.rq = RotatePointRad(r.rq, bot.pos, bot.rot);    
     var breaker = false;
-    this.senses[i].hit = false;
     for (var j = 0; j != world.food.length; j++) {
       if (world.food[j].tl != undefined && world.food[j].tl != undefined) {
         if (LineIntersects(this.senses[i].rp, this.senses[i].rq,
                            world.food[j].tl, world.food[j].br)) {
-          this.senses[i].hit = true;
-          on_senses += this.senses[i].id;
+          this.senses[i].hit = "v";
+          on_senses = this.senses[i].id + "v";
+          breaker = true;
+          break;
+        }
+      }
+    }
+    if (breaker) break;
+  }
+  
+  for (var i = 0; i != this.senses.length; i++) {
+    var r = this.senses[i];
+    var breaker = false;
+    for (var j = 0; j != world.bots.length; j++) {
+      if (world.bots[j] == bot) continue;
+      if (world.bots[j].tl != undefined && world.bots[j].tl != undefined) {
+        if (LineIntersects(this.senses[i].rp, this.senses[i].rq,
+                           world.bots[j].tl, world.bots[j].br)) {
+          this.senses[i].hit = "b";
+          //on_senses = this.senses[i].id + "v";
           breaker = true;
           break;
         }
@@ -289,14 +349,25 @@ Behaviour.prototype.Update = function(bot, world) {
   
   this.last_r_ptr = this.r_ptr;
   
-  bot.vel.x -= .007; bot.vel.y -= .007;
-  
   var old_vel = new Victor(bot.vel.x, bot.vel.y);
   switch (this.routines[this.r_ptr][this.f_ptr].func) {
-    case 0: bot.vel = this.Accelerate(bot.vel); bot.energy -= MOVE_COST; break;
-    case 1: bot.vel = this.Decelerate(bot.vel); break;
-    case 2: bot.vel = this.TurnLeft(bot.vel); bot.energy -= MOVE_COST; break;
-    case 3: bot.vel = this.TurnRight(bot.vel); bot.energy -= MOVE_COST; break;
+    case ACC: 
+      bot.vel = this.Accelerate(bot.vel); 
+      bot.energy -= MOVE_COST; 
+      break;
+    case DEC: 
+      bot.vel = this.Decelerate(bot.vel); 
+      break;
+    case TL: 
+      bot.vel = this.TurnLeft(bot.vel); 
+      break;
+    case TR: 
+      bot.vel = this.TurnRight(bot.vel);  
+      break;
+    case SH:
+      world.AddBullet(bot.pos, bot.vel, this);
+      bot.energy -= BULLET_COST;
+      break;
   }
   if (isNaN(bot.vel.x) || isNaN(bot.vel.y)) {
     bot.vel = old_vel;
@@ -313,34 +384,23 @@ Behaviour.prototype.Update = function(bot, world) {
   return bot.vel;
 };
 
-Behaviour.prototype.ToString = function() {
-  var s = "";
-  for (var i = 0; i != this.routines.length; i++) {
-    for (var j = 0; j != this.routines[i].length; j++) {
-      s += "{" + this.routines[i][j].func + "," + this.routines[i][j].repeats;
-      s += "}";
-    }
-    s += "\n";
-  }
-  return s;
-};
-
-Behaviour.prototype.RoutineToString = function(i) {
-  var s = "";
-  for (var j = 0; j != this.routines[i].length; j++) {
-    s += this.routines[i][j].func + "," + this.routines[i][j].repeats + " ";
-  }
-  return s;
-};
-
 Behaviour.prototype.Accelerate = function(vec) {
-  vec.add(new Victor(0.02, 0.02));
+  var mag = vec.length();
+  var xs = vec.x / mag;
+  var ys = vec.y / mag;
+  var alls = Math.abs(xs) + Math.abs(ys);
+  xs = (xs / alls) * .1;
+  ys = (ys / alls) * .1;
+  
+  vec.x += xs;
+  vec.y += ys;
+  
   return vec;
 };
 
 Behaviour.prototype.Decelerate = function(vec) {
-  vec.x /= 1.1;
-  vec.y /= 1.1;
+  vec.x /= 3;
+  vec.y /= 3;
   
   return vec;
 };
@@ -353,6 +413,10 @@ Behaviour.prototype.TurnLeft = function(vec) {
 Behaviour.prototype.TurnRight = function(vec) {
   vec.rotate(.05);
   return vec;
+};
+
+Behaviour.prototype.Shoot = function(vec) {
+  
 };
 
 function World(w, h, m) {
@@ -371,16 +435,23 @@ function World(w, h, m) {
   }
 
   this.animations = [];
+  this.particles = [];
   
   this.focus_beh = [];
   this.bot_focus = -1;
 }
 
+World.prototype.InitFromString = function(str) {
+  for (var i = 0; i != BOT_COUNT; i++) {
+    this.bots[i].InitFromString(str);
+  }
+};
+
 World.prototype.NewFood = function() {
   var i = this.food.length;
   this.food.push({
     pos: undefined, tl: undefined, br: undefined,
-    center: undefined, energy: 5000
+    center: undefined, energy: 1000
   });
   this.food[i].pos = new Victor(Random2(this.width-margin*2) + margin, 
                                 Random2(this.height-margin*2) + margin);
@@ -394,11 +465,11 @@ World.prototype.NewFood = function() {
 
 World.prototype.NewFoodCentred = function(x, y) {
   var newx, newy;
-  do {
-    newx = x + Random2(100) - 50;
-    newy = y + Random2(100) - 50;
-  } while (!(newx > this.margin && newx < this.width - this.margin &&
-             newy > this.margin && newy < this.height - this.margin));
+  //do {
+    newx = x + Random2(20) - 10;
+    newy = y + Random2(20) - 10;
+  //} while (!(newx > this.margin && newx < this.width - this.margin &&
+  //           newy > this.margin && newy < this.height - this.margin));
   var i = this.food.length;
   this.food.push({
     pos: undefined, tl: undefined, br: undefined, center: undefined,
@@ -425,6 +496,33 @@ World.prototype.Update = function(dt) {
       i--;
     }
   }
+  
+  for (var i = 0; i != this.particles.length; i++) {
+    for (var j = 0; j != this.bots.length; j++) {
+      if (this.bots[j].beh == this.particles[i].owner) continue;
+      if (this.particles[i].pos.distance(this.bots[j].pos) < 7) {
+        
+        this.food.splice(0, 5);
+        
+        for (var k = 0; k != 5; k++) {
+          this.NewFoodCentred(this.bots[j].pos.x, this.bots[j].pos.y);
+        }
+        
+        this.bots.splice(j, 1);
+        this.particles.splice(i, 1);
+        i--;
+        break;
+      }
+    }
+  }
+  
+  for (var i = 0; i != this.particles.length; i++) {
+    if (this.particles[i].Update(dt, this)) {
+      this.particles.splice(i, 1);
+      i--;
+    }
+  }
+  
   if (this.food.length < FOOD_COUNT) {
     while (this.food.length < FOOD_COUNT) {
       this.NewFood();
@@ -451,13 +549,35 @@ World.prototype.Draw = function(ctx) {
   }
 
   for (var i = 0; i != this.animations.length; i++) {
-    this.animations[i].Draw(ctx);
+    ctx = this.animations[i].Draw(ctx);
   }
+  
+  for (var i = 0; i != this.particles.length; i++) {
+    ctx = this.particles[i].Draw(ctx);
+  }
+  
   return ctx;
 };
 
-World.prototype.FoodEaten = function(food) {
-  this.animations.push(new Animated(food.pos, fooddie, 8, 2, 16));
+World.prototype.FoodEating = function(x, y) {
+  var new_pos = new Victor(x + 4, y + 4);
+  new_pos.x += Random2(8) - 4;
+  new_pos.y += Random2(8) - 4;
+  this.animations.push(new Animated(new_pos, foodeat, 4, 2, 4, false));
+};
+
+World.prototype.FoodEaten = function(x, y) {
+  var new_pos = new Victor(x + 4, y + 4);
+  this.animations.push(new Animated(new_pos, fooddie, 8, 2, 16, false));
+};
+
+World.prototype.AddBullet = function(pos, vel, owner) {
+  var new_pos = new Victor(pos.x, pos.y);
+  var new_vel = new Victor(0, 0);
+  new_vel.x = vel.x; new_vel.y = vel.y;
+  new_vel.normalize(); 
+  new_vel.x *= 3; new_vel.y *= 3;
+  this.particles.push(new Particle(new_pos, new_vel, bullet, 2, 30, owner));
 };
 
 World.prototype.NextGen = function() {
@@ -492,11 +612,6 @@ World.prototype.NextGen = function() {
 
   this.animations = [];
   
-  this.food = [];
-  for (var i = 0; i != FOOD_COUNT; i++) {
-    this.NewFood();
-  }
-  
   return total_energy;
 };
 
@@ -505,25 +620,55 @@ World.prototype.MouseMove = function(mouse_pos) {
     if (this.bots[i].MouseHit(mouse_pos)) {
       this.bot_focus = i;
       this.focus_beh = this.BehToString(i);
+      document.getElementById("SEL_BEH_BOX").value = "";
+      if (this.bot_focus != -1) {
+        for (var j = 0; j != this.focus_beh.length; j++) {
+          document.getElementById("SEL_BEH_BOX").value += this.focus_beh[j] + 
+            "\n";
+        }
+      }
     }
   }
 };
 
 World.prototype.AverageBehToString = function() {
   var s = [];
-  var func_str = ["A.", "D.", "L.", "R."];
+  
+  var sense_str = "";
+  for (var i = 0; i != this.bots[0].beh.senses.length; i++) {
+    var ts = {px: 0, py: 0, qx: 0, qy: 0, acc: 0};
+    for (var j = 0; j != this.bots.length; j++) {
+      var b = this.bots[j];
+      ts.px += b.beh.senses[i].p.x;
+      ts.py += b.beh.senses[i].p.y;
+      ts.qx += b.beh.senses[i].q.x;
+      ts.qy += b.beh.senses[i].q.y;
+      ts.acc += b.beh.senses[i].accuracy;
+    }
+    sense_str += this.bots[0].beh.senses[i].id + " " + ts.px/this.bots.length +
+                 " " + ts.py/this.bots.length + " " + ts.qx/this.bots.length +
+                 " " + ts.qy/this.bots.length + " " + ts.acc/this.bots.length +
+                 ";";
+  }
+  s.push(sense_str.slice(0, sense_str.length-1));
+  
   for (var i = 0; i != this.bots[0].beh.senses_to_routines_arr.length; i++) {
     var avg_routine = this.bots[0].beh.senses_to_routines_arr[i] + " ";
     for (var j = 0; j != ROUTINE_LENGTH; j++) {
       var total_repeats = 0;
-      var funcs = [0, 0, 0, 0];
+      var cmd_count = [0, 0, 0, 0, 0];
       for (var k = 0; k != this.bots.length; k++) {
-        funcs[this.bots[k].beh.routines[i][j].func]++;
+        switch (this.bots[k].beh.routines[i][j].func) {
+          case ACC: cmd_count[0]++; break;
+          case DEC: cmd_count[1]++; break;
+          case TL: cmd_count[2]++; break;
+          case TR: cmd_count[3]++; break;
+          case SH: cmd_count[4]++; break;
+        }
         total_repeats += this.bots[k].beh.routines[i][j].repeats;
       }
-      var idx = funcs.indexOf(Math.max.apply(Math, funcs));
-      avg_routine += func_str[idx] + "" + 
-                     (total_repeats/this.bots.length).toFixed(0) + " ";
+      avg_routine += cmds[cmd_count.indexOf(Math.max.apply(Math, cmd_count))] +
+                     "" + (total_repeats/this.bots.length).toFixed(0) + " ";
     }
     s.push(avg_routine);
   }
@@ -532,26 +677,38 @@ World.prototype.AverageBehToString = function() {
 
 World.prototype.BehToString = function(k) {
   var s = [];
-  var func_str = ["A.", "D.", "L.", "R."];
-  for (var i = 0; i != this.bots[k].beh.senses_to_routines_arr.length; i++) {
-    var avg_routine = this.bots[k].beh.senses_to_routines_arr[i] + " ";
+  
+  var b = this.bots[k].beh;
+  
+  var sense_str = "";
+  for (var i = 0; i != b.senses.length; i++) {
+    sense_str += b.senses[i].id + " " + b.senses[i].p.x + " " +
+                 b.senses[i].p.y + " " + b.senses[i].q.x + " " +
+                 b.senses[i].q.y + " " + b.senses[i].accuracy + ";";
+  }
+  s.push(sense_str.slice(0, sense_str.length-1));
+  
+  for (var i = 0; i != b.senses_to_routines_arr.length; i++) {
+    var avg_routine = b.senses_to_routines_arr[i] + " ";
     for (var j = 0; j != ROUTINE_LENGTH; j++) {
-      avg_routine += func_str[this.bots[k].beh.routines[i][j].func] + "" + 
-                     this.bots[k].beh.routines[i][j].repeats + " ";
+      avg_routine += b.routines[i][j].func + 
+                     b.routines[i][j].repeats + " ";
     }
     s.push(avg_routine);
   }
   return s;
 };
 
-function Animated(pos, img, frame_count, fr, size) {
+function Animated(pos, img, frame_count, fr, size, loop) {
   this.pos = pos;
+  this.pos.x -= size/2; this.pos.y -= size/2;
   this.frame = 0;
   this.img = img;
   this.frame_count = frame_count;
   this.size = size;
   this.frame_repeat = fr;
   this.frame_repeat_cnt = 0;
+  this.loop = loop;
 }
 
 Animated.prototype.Update = function(dt) {
@@ -560,6 +717,15 @@ Animated.prototype.Update = function(dt) {
     this.frame++;
     this.frame_repeat_cnt = 0;
   }
+  
+  if (this.loop) {
+    if (this.frame >= this.frame_count) {
+      this.frame = 0;
+      this.frame_repeat_cnt = 0;
+    }
+    return false;
+  }
+  
   return this.frame == this.frame_count;
 };
 
@@ -568,7 +734,33 @@ Animated.prototype.Draw = function(ctx) {
   ctx.save();
   ctx.translate(this.pos.x, this.pos.y);
   ctx.drawImage(this.img, this.frame*this.size, 0, this.size, this.size,
-                -4, -4, this.size, this.size);
+                0, 0, this.size, this.size);
   ctx.restore();
   return ctx;
 };
+
+function Particle(pos, vel, img, rad, life, owner) {
+  this.pos = pos;
+  this.vel = vel;
+  this.img = img;
+  this.rad = rad;
+  this.life = life;
+  this.rot = this.vel.angle();
+  this.owner = owner;
+}
+
+Particle.prototype.Update = function(dt, world) {
+  this.life--;
+  this.pos.add(this.vel);
+  return this.life <= 0;
+};
+
+Particle.prototype.Draw = function(ctx) {
+  ctx.save();
+  ctx.translate(this.pos.x, this.pos.y);
+  ctx.rotate(this.rot);
+  ctx.drawImage(this.img, 0, 0);
+  ctx.restore();
+  return ctx;
+};
+
