@@ -69,9 +69,9 @@
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br>
 <label class="lab">Bot Count</label>&nbsp
-<output class="lab" for=BOT_COUNT id=bc>50</output>
+<output class="lab" for=HERB_COUNT id=bc>50</output>
 <br>
-<input name="BOT_COUNT" id="BOT_COUNT" type="range" min="10" 
+<input name="HERB_COUNT" id="HERB_COUNT" type="range" min="10" 
        max="500" step="10" value="100"
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br>
@@ -121,8 +121,8 @@ canvas.setAttribute("width", w);
 canvas.setAttribute("height", h);
 
 var world = new World(window.innerWidth*0.8, h, margin);
-var energy_history = [], best_history = [], energy_data = [], average_beh = [],
-    moving_average_history = [];
+var herb_history = [], carn_history = [], energy_data = [], average_beh = [],
+    herb_average_history = [], carn_average_history = [];
 
 var debug = true;
 
@@ -188,31 +188,51 @@ function FpsLog() {
 function InitFromString() {
   world = new World(window.innerWidth*0.8, h, margin);
   world.InitFromString(document.getElementById("IN_BEH").value);
-  energy_history = [], energy_data = [], average_beh = [];
+  herb_history = [], carn_history = [], energy_data = [], average_beh = [],
+  herb_average_history = [], carn_average_history = [];
 }
 
 function NextGen() {
   var results = world.NextGen();
-  energy_history.push({x: energy_history.length, y: results});
+  herb_history.push({x: herb_history.length, y: results.h});
   energy_data = [];
-  energy_data.push({values: energy_history, key: "Energy", color: "#ff9933"});
+  energy_data.push({values: herb_history, key: "Herbiscore", color: "#ffBB66"});
   
-  if (energy_history.length % 5 == 0) {
+  if (herb_history.length % 5 == 0) {
     var avg = 0;
-    for (var i = energy_history.length - 1; 
-         i != energy_history.length - 6; i--) {
-      avg += energy_history[i].y;
+    for (var i = herb_history.length - 1; 
+         i != herb_history.length - 6; i--) {
+      avg += herb_history[i].y;
     }
     avg /= 5;
-    moving_average_history.push({x: energy_history.length - 2.5, y: avg});
+    herb_average_history.push({x: herb_history.length - 2.5, y: avg});
   }
   
   energy_data.push({
-    values: moving_average_history, key: "Average", color: "#ffd9b3"
+    values: herb_average_history, key: "Avg Herbiscore", color: "#ff7711"
+  });
+  
+  carn_history.push({x: carn_history.length, y: results.c});
+  energy_data.push({values: carn_history, key: "Carniscore", color: "#66BBff"});
+  
+  if (carn_history.length % 5 == 0) {
+    var avg = 0;
+    for (var i = carn_history.length - 1; 
+         i != carn_history.length - 6; i--) {
+      avg += carn_history[i].y;
+    }
+    avg /= 5;
+    carn_average_history.push({x: carn_history.length - 2.5, y: avg});
+  }
+  
+  energy_data.push({
+    values: carn_average_history, key: "Avg Carniscore", color: "#1177ff"
   });
   
   MakeEnergyTrend();
-  average_beh = world.AverageBehToString(); 
+  
+  
+  //average_beh = world.AverageBehToString(); 
 }
 
 function Draw() {
@@ -286,8 +306,8 @@ function ButtonUpdate() {
   SENSE_MUTATION = (document.querySelector('#SENSE_MUTATION').value);
   document.querySelector('#sm').value = SENSE_MUTATION;
   
-  BOT_COUNT = (document.querySelector('#BOT_COUNT').value);
-  document.querySelector('#bc').value = BOT_COUNT;
+  HERB_COUNT = (document.querySelector('#HERB_COUNT').value);
+  document.querySelector('#bc').value = HERB_COUNT;
 }
 
 
