@@ -5,7 +5,7 @@ var foodimg, fihw, fihh, food_particle, fooddie, foodeat, bullet,
     herbeat, herbdie;
 var sense_miss = "rgba(70, 70, 70, .3)", 
     sense_hitv = "rgba(50, 200, 50, .5)",
-    sense_hith = "rgba(200, 200, 50, .5)",
+    sense_hith = "rgba(50, 50, 200, .5)",
     sense_hitc = "rgba(200, 50, 50, .5)";
 
 var HERB_COUNT = 100, CARN_COUNT = 100, FOOD_COUNT = 60, MUT_FUNC = 20,
@@ -69,16 +69,16 @@ function CarnSenses(senses) {
     rp: new Victor(14, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(0, 0), q: new Victor(10, 0), id: "C",
+    p: new Victor(-2, 0), q: new Victor(8, 0), id: "C",
     rp: new Victor(0, 0), rq: new Victor(10, 0), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(4, 4), q: new Victor(55, 30), id: "R",
-    rp: new Victor(4, 4), rq: new Victor(55, 30), accuracy: 1, hit: false
+    p: new Victor(4, 4), q: new Victor(55, 20), id: "R",
+    rp: new Victor(4, 4), rq: new Victor(55, 20), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(4, -4), q: new Victor(55, -30), id: "L",
-    rp: new Victor(4, -4), rq: new Victor(55, -30), accuracy: 1, hit: false
+    p: new Victor(4, -4), q: new Victor(55, -20), id: "L",
+    rp: new Victor(4, -4), rq: new Victor(55, -20), accuracy: 1, hit: false
   });
   return senses;
 }
@@ -90,15 +90,15 @@ function HerbSenses(senses) {
     rp: new Victor(14, 0), rq: new Victor(80, 0), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(0, 0), q: new Victor(10, 0), id: "C",
+    p: new Victor(-2, 0), q: new Victor(8, 0), id: "C",
     rp: new Victor(0, 0), rq: new Victor(10, 0), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(4, 4), q: new Victor(55, 30), id: "R",
-    rp: new Victor(4, 4), rq: new Victor(55, 30), accuracy: 1, hit: false
+    p: new Victor(4, 4), q: new Victor(45, 45), id: "R",
+    rp: new Victor(4, 4), rq: new Victor(55, 45), accuracy: 1, hit: false
   });
   senses.push({
-    p: new Victor(4, -4), q: new Victor(55, -30), id: "L",
+    p: new Victor(4, -4), q: new Victor(45, -45), id: "L",
     rp: new Victor(4, -4), rq: new Victor(55, -30), accuracy: 1, hit: false
   });
   senses.push({
@@ -579,10 +579,15 @@ function World(w, h, m) {
   this.drag_line = {p: this.mouse_start, q: new Victor(0, 0)};
 }
 
-World.prototype.InitFromString = function(str) {
-  for (var i = 0; i != HERB_COUNT; i++) {
-    this.bots[i].InitFromString(str);
-  }
+World.prototype.InitFromString = function(herbstr, carnstr) {
+  if (herbstr != "")
+    for (var i = 0; i != HERB_COUNT/2; i++) {
+      this.bots[i].InitFromString(herbstr);
+    }
+  if (carnstr != "")
+    for (var i = HERB_COUNT/2; i != HERB_COUNT; i++) {
+      this.bots[i].InitFromString(carnstr);
+    }
 };
 
 World.prototype.NewFood = function() {
@@ -705,8 +710,8 @@ World.prototype.Draw = function(ctx) {
 
 World.prototype.VegEating = function(x, y) {
   var new_pos = new Victor(x + 4, y + 4);
-  new_pos.x += Random2(8) - 4;
-  new_pos.y += Random2(8) - 4;
+  new_pos.x += Random2(12) - 6;
+  new_pos.y += Random2(12) - 6;
   this.animations.push(new Animated(new_pos, foodeat, 4, 2, 4, false));
 };
 
@@ -716,14 +721,14 @@ World.prototype.VegEaten = function(x, y) {
 };
 
 World.prototype.HerbEating = function(x, y) {
-  var new_pos = new Victor(x + 4, y + 4);
-  new_pos.x += Random2(8) - 4;
-  new_pos.y += Random2(8) - 4;
+  var new_pos = new Victor(x, y);
+  new_pos.x += Random2(12) - 6;
+  new_pos.y += Random2(12) - 6;
   this.animations.push(new Animated(new_pos, herbeat, 4, 2, 4, false));
 };
 
 World.prototype.HerbEaten = function(x, y) {
-  var new_pos = new Victor(x + 4, y + 4);
+  var new_pos = new Victor(x, y);
   this.animations.push(new Animated(new_pos, herbdie, 8, 2, 16, false));
 };
 
@@ -784,17 +789,7 @@ World.prototype.NextGen = function() {
 
 World.prototype.MouseMove = function(mouse_pos) {
   for (var i = 0; i != this.bots.length; i++) {
-    if (this.bots[i].MouseHit(mouse_pos)) {
-      this.bot_focus = i;
-      this.focus_beh = this.BehToString(i);
-      document.getElementById("SEL_BEH_BOX").value = "";
-      if (this.bot_focus != -1) {
-        for (var j = 0; j != this.focus_beh.length; j++) {
-          document.getElementById("SEL_BEH_BOX").value += this.focus_beh[j] + 
-            "\n";
-        }
-      }
-    }
+    this.bots[i].MouseHit(mouse_pos);
   }
   
   if (this.mouse_is_down) {
@@ -819,13 +814,22 @@ World.prototype.MouseUp = function(mouse_pos) {
   this.drag_line.q = new Victor(-100, -100);
 };
 
-World.prototype.AverageBehToString = function() {
+World.prototype.AverageBehToString = function(type) {
   var s = [];
   
+  var idx = 0;
+  for (var i = 0; i != this.bots[i].length; i++) {
+    if (this.bots[i].type == type) {
+      idx = i;
+      break;
+    }
+  }
+  
   var sense_str = "";
-  for (var i = 0; i != this.bots[0].beh.senses.length; i++) {
+  for (var i = 0; i != this.bots[idx].beh.senses.length; i++) {
     var ts = {px: 0, py: 0, qx: 0, qy: 0, acc: 0};
     for (var j = 0; j != this.bots.length; j++) {
+      if (this.bots[j].type != type) continue;
       var b = this.bots[j];
       ts.px += b.beh.senses[i].p.x;
       ts.py += b.beh.senses[i].p.y;
@@ -833,19 +837,24 @@ World.prototype.AverageBehToString = function() {
       ts.qy += b.beh.senses[i].q.y;
       ts.acc += b.beh.senses[i].accuracy;
     }
-    sense_str += this.bots[0].beh.senses[i].id + " " + ts.px/this.bots.length +
+    sense_str += this.bots[idx].beh.senses[i].id + " " +ts.px/this.bots.length +
                  " " + ts.py/this.bots.length + " " + ts.qx/this.bots.length +
                  " " + ts.qy/this.bots.length + " " + ts.acc/this.bots.length +
                  ";";
   }
   s.push(sense_str.slice(0, sense_str.length-1));
   
-  for (var i = 0; i != this.bots[0].beh.senses_to_routines_arr.length; i++) {
-    var avg_routine = this.bots[0].beh.senses_to_routines_arr[i] + " ";
+  for (var i = 0; i != this.bots[idx].beh.senses_to_routines_arr.length; i++) {
+    var avg_routine = this.bots[idx].beh.senses_to_routines_arr[i] + " ";
     for (var j = 0; j != ROUTINE_LENGTH; j++) {
       var total_repeats = 0;
       var cmd_count = [0, 0, 0, 0, 0];
       for (var k = 0; k != this.bots.length; k++) {
+        if (this.bots[k].type != type) continue;
+        //console.log(k + " " + i + " " + j);
+        if (k == 10 && i == 5 && j == 0) {
+          var a = 5;
+        }
         switch (this.bots[k].beh.routines[i][j].func) {
           case ACC: cmd_count[0]++; break;
           case DEC: cmd_count[1]++; break;

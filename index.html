@@ -27,13 +27,13 @@
 <body>
 
 <div id="buttons">
-<label class="lab">Avg Behaviour</label>
+<label class="lab">Avg Herb Behaviour</label>
 <br>
-<textarea rows='4' cols='29' id='AVG_BEH_BOX'></textarea>
+<textarea rows='2' cols='29' id='AVG_HERB_BOX'></textarea>
 <br>
-<label class="lab">Selected Behaviour</label>
+<label class="lab">Avg Carn Behaviour</label>
 <br>
-<textarea rows='4' cols='29' id='SEL_BEH_BOX'></textarea>
+<textarea rows='2' cols='29' id='AVG_CARN_BOX'></textarea>
 <br><br>
   
 <button onclick="debug = !debug;" type="button">Debug</button>
@@ -72,7 +72,7 @@
 <output class="lab" for=HERB_COUNT id=bc>50</output>
 <br>
 <input name="HERB_COUNT" id="HERB_COUNT" type="range" min="10" 
-       max="500" step="10" value="100"
+       max="500" step="10" value="200"
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br>
 <label class="lab">Food Count</label>&nbsp
@@ -83,7 +83,13 @@
        style="position:relative; top: 0px; left: 0px; z-index:2"/>
 <br><br>
 
-<textarea rows='4' cols='29' id='IN_BEH'></textarea>
+<label class="lab">Init Herb Behaviour</label>
+<br>
+<textarea rows='2' cols='29' id='INIT_HERB_BOX'></textarea>
+<br>
+<label class="lab">Init Carn Behaviour</label>
+<br>
+<textarea rows='2' cols='29' id='INIT_CARN_BOX'></textarea>
 <br>
 <button onclick="InitFromString()" type="button">InitFromString</button>
 
@@ -114,17 +120,17 @@ var w = window.innerWidth*0.978, h = window.innerHeight*0.94, margin = 30,
 var menu_rect = {x: window.innerWidth*0.8, y: 0, 
                  w: window.innerWidth*0.178, h: window.innerHeight*0.94};
 
-    
 var fps, saved_fps = 0, last_date, second = 0;
 var canvas = document.getElementById('canvas');
 canvas.setAttribute("width", w);
 canvas.setAttribute("height", h);
 
 var world = new World(window.innerWidth*0.8, h, margin);
-var herb_history = [], carn_history = [], energy_data = [], average_beh = [],
+var herb_history = [], carn_history = [], energy_data = [], 
+    herb_avg_beh = [], carn_avg_beh = [],
     herb_average_history = [], carn_average_history = [];
 
-var debug = true;
+var debug = false;
 
 Init();
 
@@ -176,9 +182,13 @@ function FpsLog() {
     second_count++;
     if (second_count % GEN_TIME == 0) {
       NextGen();
-      document.getElementById("AVG_BEH_BOX").value = "";
-      for (var i = 0; i != average_beh.length; i++) {
-        document.getElementById("AVG_BEH_BOX").value += average_beh[i] + "\n";
+      document.getElementById("AVG_HERB_BOX").value = "";
+      for (var i = 0; i != herb_avg_beh.length; i++) {
+        document.getElementById("AVG_HERB_BOX").value += herb_avg_beh[i] + "\n";
+      }
+      document.getElementById("AVG_CARN_BOX").value = "";
+      for (var i = 0; i != carn_avg_beh.length; i++) {
+        document.getElementById("AVG_CARN_BOX").value += carn_avg_beh[i] + "\n";
       }
     }
   }
@@ -187,8 +197,10 @@ function FpsLog() {
 
 function InitFromString() {
   world = new World(window.innerWidth*0.8, h, margin);
-  world.InitFromString(document.getElementById("IN_BEH").value);
-  herb_history = [], carn_history = [], energy_data = [], average_beh = [],
+  world.InitFromString(document.getElementById("INIT_HERB_BOX").value,
+                       document.getElementById("INIT_CARN_BOX").value);
+  herb_history = [], carn_history = [], energy_data = [],
+  carn_avg_beh = [], herb_avg_beh = [],
   herb_average_history = [], carn_average_history = [];
 }
 
@@ -196,7 +208,7 @@ function NextGen() {
   var results = world.NextGen();
   herb_history.push({x: herb_history.length, y: results.h});
   energy_data = [];
-  energy_data.push({values: herb_history, key: "Herbiscore", color: "#ffBB66"});
+  energy_data.push({values: herb_history, key: "Herbiscore", color: "#99eeff"});
   
   if (herb_history.length % 5 == 0) {
     var avg = 0;
@@ -209,11 +221,11 @@ function NextGen() {
   }
   
   energy_data.push({
-    values: herb_average_history, key: "Avg Herbiscore", color: "#ff7711"
+    values: herb_average_history, key: "Avg Herbiscore", color: "#3388ff"
   });
   
   carn_history.push({x: carn_history.length, y: results.c});
-  energy_data.push({values: carn_history, key: "Carniscore", color: "#66BBff"});
+  energy_data.push({values: carn_history, key: "Carniscore", color: "#fdc398"});
   
   if (carn_history.length % 5 == 0) {
     var avg = 0;
@@ -226,13 +238,13 @@ function NextGen() {
   }
   
   energy_data.push({
-    values: carn_average_history, key: "Avg Carniscore", color: "#1177ff"
+    values: carn_average_history, key: "Avg Carniscore", color: "#fd8125"
   });
   
   MakeEnergyTrend();
   
-  
-  //average_beh = world.AverageBehToString(); 
+  herb_avg_beh = world.AverageBehToString(HERBIVORE); 
+  carn_avg_beh = world.AverageBehToString(CARNIVORE); 
 }
 
 function Draw() {
